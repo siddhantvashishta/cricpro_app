@@ -3,14 +3,21 @@ import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Ani
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../theme';
 import { useNavigation } from '@react-navigation/native';
+import { useAppStore } from '../store/useAppStore';
 
 export const CreationFab: React.FC = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [scale] = useState(new Animated.Value(1));
 
     const navigation = useNavigation<any>();
+    const { activeTab } = useAppStore();
 
     const toggleModal = () => {
+        if (activeTab === 'community') {
+            navigation.navigate('WritePost');
+            return;
+        }
+
         Animated.sequence([
             Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
             Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true })
@@ -71,8 +78,8 @@ export const CreationFab: React.FC = () => {
 
             <View style={styles.fabWrapper}>
                 <TouchableOpacity activeOpacity={0.8} onPress={toggleModal}>
-                    <Animated.View style={[styles.fabButton, { transform: [{ scale }] }]}>
-                        <Ionicons name={modalVisible ? "close" : "add"} size={28} color={colors.text.inverse} />
+                    <Animated.View style={[styles.fabButton, { transform: [{ scale }] }, modalVisible && styles.fabButtonActive]}>
+                        <Ionicons name={modalVisible ? "close" : "add"} size={32} color="white" />
                     </Animated.View>
                 </TouchableOpacity>
             </View>
@@ -83,22 +90,28 @@ export const CreationFab: React.FC = () => {
 const styles = StyleSheet.create({
     fabWrapper: {
         position: 'absolute',
-        bottom: 96, // Positioned 16px above the 56px-tall Toss icon (24 bottom + 56 height + 16 gap = 96)
-        right: 24,
-        zIndex: 999, // FAB always on top
+        bottom: 26, // Moved to primary bottom position for better accessibility
+        right: 16,
+        zIndex: 999,
     },
     fabButton: {
-        width: 44, // Same size as coin image
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.primary, // Brand deep blue
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#F97316',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: colors.primary, // Colored shadow for premium look
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 8,
-        elevation: 6,
+        shadowColor: '#F97316', 
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 8,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    fabButtonActive: {
+        backgroundColor: colors.error,
+        shadowColor: colors.error,
     },
     modalOverlay: {
         position: 'absolute',
@@ -106,43 +119,44 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
         zIndex: 900,
     },
     modalContent: {
         position: 'absolute',
-        bottom: 152, // Shifted up to match the FAB's new vertical position (96 bottom + 44 height + 12 gap = 152)
-        right: 24,
-        width: 250,
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        borderRadius: 16,
+        bottom: 160, // Positioned above the whole stack (FAB + Toss icon)
+        right: 16,
+        width: 260,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
         padding: spacing.md,
-        borderWidth: 1,
-        borderColor: 'rgba(226, 232, 240, 0.5)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 15,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     actionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.sm,
+        paddingVertical: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
     iconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: spacing.md,
-        backgroundColor: colors.surfaceHighlight, // Give icons a slight colored background again for contrast
     },
     actionText: {
         ...typography.presets.bodyLarge,
-        fontWeight: typography.weights.medium,
-        color: colors.text.primary,
-        flex: 1, // Take up remaining space
+        fontWeight: '700',
+        color: '#1E293B',
+        flex: 1,
     }
 });

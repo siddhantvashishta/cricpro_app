@@ -2,11 +2,15 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, typography, radius } from '../theme';
 
-export const MyCricketActionBanner: React.FC = () => {
+export interface MyCricketActionBannerProps {
+    onStartPress?: () => void;
+}
+
+export const MyCricketActionBanner: React.FC<MyCricketActionBannerProps> = ({ onStartPress }) => {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Want to start a match?</Text>
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity style={styles.button} onPress={onStartPress}>
                 <Text style={styles.buttonText}>Start</Text>
             </TouchableOpacity>
         </View>

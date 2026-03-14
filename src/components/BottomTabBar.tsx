@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../theme';
+import { colors as staticColors, spacing, typography } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import { useAppStore } from '../store/useAppStore';
 
 export interface TabItem {
     id: string;
@@ -11,7 +13,7 @@ export interface TabItem {
 
 interface BottomTabBarProps {
     tabs?: TabItem[];
-    activeTab?: string;
+    // Removing explicit activeTab as we'll use global state
     onTabPress?: (id: string) => void;
 }
 
@@ -27,11 +29,12 @@ const DUMMY_TABS: TabItem[] = [
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
     tabs = DUMMY_TABS,
-    activeTab = 'home',
     onTabPress = () => { },
 }) => {
+    const activeTab = useAppStore((state) => state.activeTab);
+    const { colors, isDark } = useTheme();
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -60,11 +63,10 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         flexWrap: 'nowrap',
-        backgroundColor: colors.surface,
         paddingTop: spacing.sm,
         paddingBottom: spacing.lg,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopColor: staticColors.border,
         justifyContent: 'space-evenly', // Evenly spaces them so they perfectly center without crowding edges
         paddingHorizontal: 2, // Remove inner padding to maximize width
     },
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
     tabLabel: {
         ...typography.presets.caption,
         fontSize: 9, // Reduced font to fit 6 items
-        color: colors.text.secondary,
+        color: staticColors.text.secondary,
         marginTop: 2,
         fontWeight: typography.weights.medium,
         textAlign: 'center',

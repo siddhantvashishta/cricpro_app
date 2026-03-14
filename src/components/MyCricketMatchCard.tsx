@@ -1,6 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { colors, spacing, typography, radius } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { getTeamColor } from '../utils/teamColors';
+
+const { width } = Dimensions.get('window');
 
 export interface MyCricketMatchCardProps {
     leagueName: string;
@@ -11,8 +14,16 @@ export interface MyCricketMatchCardProps {
     location: string;
     team1: string;
     team2: string;
+    team1Logo?: string;
+    team2Logo?: string;
+    team1Color?: string;
+    team2Color?: string;
+    mainLogo?: string;
     scheduledText: string;
     footerLinks: string[];
+    thumbnailUrl?: string;
+    onPress?: () => void;
+    onLinkPress?: (link: string) => void;
 }
 
 export const MyCricketMatchCard: React.FC<MyCricketMatchCardProps> = ({
@@ -24,43 +35,86 @@ export const MyCricketMatchCard: React.FC<MyCricketMatchCardProps> = ({
     location,
     team1,
     team2,
+    team1Logo,
+    team2Logo,
+    team1Color,
+    team2Color,
+    mainLogo,
     scheduledText,
-    footerLinks
+    footerLinks,
+    thumbnailUrl,
+    onPress,
+    onLinkPress
 }) => {
     return (
         <View style={styles.cardContainer}>
-            {/* Top Section */}
-            <View style={styles.topSection}>
-                <View style={styles.topLeft}>
-                    <Text style={styles.leagueText} numberOfLines={1}>
-                        <Text style={styles.leagueName}>{leagueName}</Text>, {tournamentName}
-                    </Text>
-                    <Text style={styles.dateLocationText} numberOfLines={1}>
-                        {dateStr} | {overs} | {location}
-                    </Text>
-                </View>
-                <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{status}</Text>
-                </View>
-            </View>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onPress}
+                style={styles.touchable}
+            >
+                {/* Thumbnail for Video Highlights */}
+                {thumbnailUrl && (
+                    <View style={styles.thumbnailContainer}>
+                        <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} />
+                        <View style={styles.playIconOverlay}>
+                            <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.8)" />
+                        </View>
+                    </View>
+                )}
 
-            {/* Middle Section (Teams) */}
-            <View style={styles.middleSection}>
-                <Text style={styles.teamName}>{team1}</Text>
-                <Text style={styles.teamName}>{team2}</Text>
-            </View>
-
-            {/* Bottom Section */}
-            <View style={styles.bottomSection}>
-                <Text style={styles.scheduledText}>{scheduledText}</Text>
-                <View style={styles.linksRow}>
-                    {footerLinks.map((link, index) => (
-                        <Text key={index} style={styles.linkText}>
-                            {link}
+                {/* Top Section */}
+                <View style={styles.topSection}>
+                    {mainLogo && <Image source={{ uri: mainLogo }} style={styles.headerLogo} />}
+                    <View style={styles.topLeft}>
+                        <Text style={styles.leagueText} numberOfLines={1}>
+                            <Text style={styles.leagueName}>{leagueName}</Text>, {tournamentName}
                         </Text>
-                    ))}
+                        <Text style={styles.dateLocationText} numberOfLines={1}>
+                            {dateStr} | {overs} | {location}
+                        </Text>
+                    </View>
+                    <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>{status}</Text>
+                    </View>
                 </View>
-            </View>
+
+                {/* Middle Section (Teams) */}
+                <View style={styles.middleSection}>
+                    <View style={styles.teamRow}>
+                        {team1Logo ? (
+                            <Image source={{ uri: team1Logo }} style={styles.teamLogo} />
+                        ) : (
+                            <View style={[styles.teamLogo, styles.placeholderLogo]}>
+                                <Ionicons name="shield-outline" size={14} color={colors.text.secondary} />
+                            </View>
+                        )}
+                        <Text style={[styles.teamName, { color: team1Color || getTeamColor(team1) }]}>{team1}</Text>
+                    </View>
+                    <View style={styles.teamRow}>
+                        {team2Logo ? (
+                            <Image source={{ uri: team2Logo }} style={styles.teamLogo} />
+                        ) : (
+                            <View style={[styles.teamLogo, styles.placeholderLogo]}>
+                                <Ionicons name="shield-outline" size={14} color={colors.text.secondary} />
+                            </View>
+                        )}
+                        <Text style={[styles.teamName, { color: team2Color || getTeamColor(team2) }]}>{team2}</Text>
+                    </View>
+                </View>
+
+                {/* Bottom Section */}
+                <View style={styles.bottomSection}>
+                    <Text style={styles.scheduledText}>{scheduledText}</Text>
+                    <View style={styles.linksRow}>
+                        {footerLinks.map((link, index) => (
+                            <TouchableOpacity key={index} onPress={() => onLinkPress?.(link)}>
+                                <Text style={styles.linkText}>{link}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -69,10 +123,33 @@ const styles = StyleSheet.create({
     cardContainer: {
         backgroundColor: colors.surface,
         borderRadius: radius.md,
-        borderWidth: 1,
-        borderColor: colors.border,
         marginHorizontal: spacing.lg,
         marginBottom: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        overflow: 'hidden',
+    },
+    touchable: {
+        padding: 0,
+    },
+    thumbnailContainer: {
+        position: 'relative',
+        height: 160,
+        backgroundColor: colors.background,
+    },
+    thumbnail: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    playIconOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.2)',
     },
     topSection: {
         flexDirection: 'row',
@@ -81,11 +158,18 @@ const styles = StyleSheet.create({
         paddingTop: spacing.md,
         paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: colors.border,
     },
     topLeft: {
         flex: 1,
         marginRight: spacing.sm,
+    },
+    headerLogo: {
+        width: 32,
+        height: 32,
+        borderRadius: radius.full,
+        marginRight: spacing.md,
+        backgroundColor: colors.background,
     },
     leagueText: {
         ...typography.presets.bodySmall,
@@ -94,20 +178,21 @@ const styles = StyleSheet.create({
     },
     leagueName: {
         fontWeight: typography.weights.bold,
+        color: colors.text.primary,
     },
     dateLocationText: {
         ...typography.presets.caption,
-        color: 'gray', // Match exact grey from design
+        color: colors.text.secondary,
     },
     statusBadge: {
-        backgroundColor: '#F97316', // orange badge
+        backgroundColor: '#FEF2F2',
         paddingHorizontal: spacing.sm,
         paddingVertical: 2,
         borderRadius: radius.md,
         alignSelf: 'flex-start',
     },
     statusText: {
-        color: colors.text.inverse,
+        color: '#DC2626',
         fontSize: 10,
         fontWeight: 'bold',
     },
@@ -115,31 +200,46 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: colors.border,
+    },
+    teamRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.xs,
+    },
+    teamLogo: {
+        width: 24,
+        height: 24,
+        borderRadius: radius.full,
+        marginRight: spacing.sm,
+    },
+    placeholderLogo: {
+        backgroundColor: colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     teamName: {
         ...typography.presets.bodyLarge,
         fontWeight: typography.weights.bold,
-        color: colors.text.primary,
-        marginBottom: spacing.xs,
     },
     bottomSection: {
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     scheduledText: {
         ...typography.presets.bodySmall,
-        color: colors.text.primary,
-        marginBottom: spacing.sm,
+        color: colors.text.secondary,
     },
     linksRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
         gap: spacing.md,
     },
     linkText: {
         ...typography.presets.bodySmall,
-        color: '#F97316', // Orange link text
+        color: '#F97316',
         fontWeight: typography.weights.bold,
-    }
+    },
 });

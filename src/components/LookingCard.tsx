@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radius } from '../theme';
 
+export type LookingType = 'Opponent' | 'Recruitment' | 'Player';
+
 export interface LookingCardProps {
+    type: LookingType;
     teamName: string;
     description: string;
     requirementText?: string;
@@ -12,9 +15,14 @@ export interface LookingCardProps {
     timeAgo: string;
     distance: string;
     rightIconType: 'VS' | 'Person';
+    onActionPress?: () => void;
+    onMorePress?: () => void;
+    onProfilePress?: () => void;
+    onMessagePress?: () => void;
 }
 
 export const LookingCard: React.FC<LookingCardProps> = ({
+    type,
     teamName,
     description,
     requirementText,
@@ -22,70 +30,88 @@ export const LookingCard: React.FC<LookingCardProps> = ({
     ground,
     timeAgo,
     distance,
-    rightIconType
+    rightIconType,
+    onActionPress,
+    onMorePress,
+    onProfilePress,
+    onMessagePress
 }) => {
+    const getTypeLabel = () => {
+        switch (type) {
+            case 'Opponent': return 'NEEDS OPPONENT';
+            case 'Recruitment': return 'RECRUITING';
+            case 'Player': return 'LOOKING FOR TEAM';
+            default: return '';
+        }
+    };
+
     return (
         <View style={styles.card}>
-            {/* Header / Body Section */}
-            <View style={styles.bodySection}>
-                <View style={styles.avatarContainer}>
-                    <Image
-                        source={{ uri: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=150' }}
-                        style={styles.avatar}
-                    />
-                    <View style={styles.proBadge}>
-                        <Text style={styles.proText}>PRO</Text>
+            <View style={styles.cardHeader}>
+                <View style={styles.headerLeft}>
+                    <View style={styles.typeBadge}>
+                        <Text style={styles.typeLabel}>{getTypeLabel()}</Text>
                     </View>
+                    <Text style={styles.timeAgo}>{timeAgo}</Text>
                 </View>
-
-                <View style={styles.textContainer}>
-                    <Text style={styles.mainDescription}>
-                        <Text style={styles.teamNameText}>{teamName}</Text> {description}
-                    </Text>
-
-                    <View style={styles.bulletRow}>
-                        <View style={styles.bullet} />
-                        <Text style={styles.metaText}>{date}</Text>
-                    </View>
-                    <View style={styles.bulletRow}>
-                        <View style={styles.bullet} />
-                        <Text style={styles.metaText}>{ground}</Text>
-                    </View>
-                    {requirementText && (
-                        <View style={styles.bulletRow}>
-                            <View style={styles.bullet} />
-                            <Text style={styles.metaText}>{requirementText}</Text>
-                        </View>
-                    )}
-                </View>
-
-                <View style={styles.rightIconContainer}>
-                    {rightIconType === 'VS' ? (
-                        <View style={styles.vsBadge}>
-                            <Text style={styles.vsText}>VS</Text>
-                        </View>
-                    ) : (
-                        <Ionicons name="person-outline" size={32} color={colors.text.secondary} />
-                    )}
+                <View style={styles.headerRight}>
+                    <TouchableOpacity onPress={onMessagePress} style={styles.iconBtn}>
+                        <Ionicons name="chatbubble-outline" size={20} color={colors.text.secondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onMorePress} style={styles.iconBtn}>
+                        <Ionicons name="ellipsis-horizontal" size={20} color={colors.text.secondary} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Footer Section */}
-            <View style={styles.footerSection}>
-                <Text style={styles.timeAgoText}>{timeAgo}</Text>
-
-                <View style={styles.footerCenter}>
-                    {/* Fake red ball icon */}
-                    <View style={styles.redBall} />
-                    <View style={styles.distanceContainer}>
-                        <Ionicons name="location-outline" size={14} color="#F97316" />
-                        <Text style={styles.distanceText}>{distance}</Text>
+            <View style={styles.contentRow}>
+                <View style={styles.avatarContainer}>
+                    <View style={styles.avatar}>
+                        <Ionicons name={rightIconType === 'VS' ? 'trophy' : 'person'} size={28} color={colors.text.secondary} />
                     </View>
                 </View>
+                <View style={styles.mainInfo}>
+                    <Text style={styles.teamName} numberOfLines={1}>{teamName}</Text>
+                    <Text style={styles.description} numberOfLines={2}>
+                        {description}
+                    </Text>
+                </View>
+                <View style={styles.rightFloatingIcon}>
+                    <Image
+                        source={require('../../assets/main_logo.png')}
+                        style={styles.floatingImage}
+                    />
+                </View>
+            </View>
 
-                <TouchableOpacity style={styles.contactBtn}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={16} color="#F97316" />
-                    <Text style={styles.contactText}>Contact</Text>
+            <View style={styles.detailsRow}>
+                <View style={styles.detailItem}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.text.secondary} />
+                    <Text style={styles.detailText}>{date}</Text>
+                </View>
+                <View style={styles.detailItem}>
+                    <Ionicons name="location-outline" size={16} color={colors.text.secondary} />
+                    <Text style={styles.detailText}>{ground} • {distance}</Text>
+                </View>
+            </View>
+
+            {requirementText && (
+                <View style={styles.requirementBox}>
+                    <Text style={styles.requirementText}>{requirementText}</Text>
+                </View>
+            )}
+
+            <View style={styles.footer}>
+                <TouchableOpacity style={styles.secondaryAction} onPress={onProfilePress}>
+                    <Text style={styles.secondaryActionText}>View Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.primaryAction, { backgroundColor: type === 'Opponent' ? '#DC2626' : '#2563EB' }]}
+                    onPress={onActionPress}
+                >
+                    <Text style={styles.primaryActionText}>
+                        {type === 'Opponent' ? 'Challenge' : type === 'Player' ? 'Hire player' : 'Apply Now'}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -95,131 +121,147 @@ export const LookingCard: React.FC<LookingCardProps> = ({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: colors.surface,
-        borderRadius: radius.md,
-        marginHorizontal: spacing.md,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        overflow: 'hidden',
-    },
-    bodySection: {
-        flexDirection: 'row',
+        borderRadius: radius.lg,
         padding: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        marginBottom: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+        marginHorizontal: spacing.lg,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    typeBadge: {
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+        borderRadius: radius.md,
+        marginRight: spacing.sm,
+    },
+    typeLabel: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#DC2626',
+        textTransform: 'uppercase',
+    },
+    timeAgo: {
+        fontSize: 12,
+        color: colors.text.secondary,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    iconBtn: {
+        marginLeft: spacing.sm,
+    },
+    contentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
     },
     avatarContainer: {
-        position: 'relative',
         marginRight: spacing.md,
     },
     avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.border,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    proBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -6,
-        backgroundColor: '#10B981', // green
-        paddingHorizontal: 4,
-        borderRadius: 4,
-    },
-    proText: {
-        color: '#FFF',
-        fontSize: 8,
-        fontWeight: 'bold',
-    },
-    textContainer: {
+    mainInfo: {
         flex: 1,
     },
-    mainDescription: {
-        ...typography.presets.body,
-        color: colors.text.secondary,
-        marginBottom: spacing.sm,
-        lineHeight: 20,
-    },
-    teamNameText: {
+    teamName: {
+        ...typography.presets.h3,
         color: colors.text.primary,
-        fontWeight: typography.weights.medium,
-    },
-    bulletRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
         marginBottom: 4,
     },
-    bullet: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#9ca3af',
-        marginRight: spacing.sm,
-    },
-    metaText: {
+    description: {
         ...typography.presets.bodySmall,
         color: colors.text.secondary,
-        fontWeight: typography.weights.medium,
+        lineHeight: 20,
     },
-    rightIconContainer: {
-        marginLeft: spacing.sm,
+    rightFloatingIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
         alignItems: 'center',
+        marginLeft: spacing.sm,
     },
-    vsBadge: {
+    floatingImage: {
         width: 32,
         height: 32,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: colors.text.secondary,
+        resizeMode: 'contain',
+        opacity: 0.8,
+    },
+    detailsRow: {
+        marginBottom: spacing.md,
+        gap: spacing.xs,
+    },
+    detailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    detailText: {
+        ...typography.presets.bodySmall,
+        color: colors.text.secondary,
+        marginLeft: 8,
+    },
+    requirementBox: {
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: radius.md,
+        marginBottom: spacing.md,
+    },
+    requirementText: {
+        ...typography.presets.caption,
+        color: colors.text.secondary,
+        fontStyle: 'italic',
+        textAlign: 'center',
+    },
+    footer: {
+        flexDirection: 'row',
+        gap: spacing.md,
+        marginTop: spacing.xs,
+    },
+    primaryAction: {
+        flex: 1,
+        height: 44,
+        borderRadius: radius.full,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    vsText: {
-        color: colors.text.secondary,
-        fontWeight: typography.weights.bold,
-        fontSize: 12,
-        fontStyle: 'italic',
+    primaryActionText: {
+        color: colors.text.inverse,
+        fontWeight: 'bold',
     },
-    footerSection: {
-        flexDirection: 'row',
+    secondaryAction: {
+        flex: 1,
+        height: 44,
+        borderRadius: radius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        justifyContent: 'center',
     },
-    timeAgoText: {
-        ...typography.presets.caption,
-        color: colors.text.secondary,
-    },
-    footerCenter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    redBall: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#E11D48', // Red
-        marginRight: spacing.md,
-    },
-    distanceContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    distanceText: {
-        ...typography.presets.caption,
-        color: '#F97316', // Orange
-        fontWeight: typography.weights.bold,
-        marginLeft: 4,
-    },
-    contactBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    contactText: {
-        ...typography.presets.caption,
-        color: '#F97316',
-        fontWeight: typography.weights.bold,
-        marginLeft: 4,
+    secondaryActionText: {
+        color: colors.text.primary,
+        fontWeight: '600',
     },
 });

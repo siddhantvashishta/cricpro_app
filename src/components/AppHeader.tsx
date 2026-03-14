@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, StatusBar, ImageBackground } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NotificationModal } from './NotificationModal';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, radius } from '../theme';
+import { colors as staticColors, spacing, typography, radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import { useAppStore } from '../store/useAppStore';
 
 export interface RightIconState {
     name: keyof typeof Ionicons.glyphMap;
@@ -18,6 +20,8 @@ interface AppHeaderProps {
     onNotificationPress?: () => void;
     onRenewPress?: () => void;
     rightIcons?: RightIconState[];
+    title?: string;
+    showBack?: boolean;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -27,9 +31,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     onNotificationPress,
     onRenewPress,
     rightIcons,
+    title,
+    showBack,
 }) => {
     const navigation = useNavigation<any>();
     const [isNotificationModalVisible, setNotificationModalVisible] = useState(false);
+    const { colors, themeMode, isDark } = useTheme();
+    const { toggleThemeMode, isProMember, setActiveHomeTab } = useAppStore();
 
     // For Android, we use StatusBar.currentHeight to accurately pad the top
     const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
@@ -42,26 +50,41 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     };
 
     return (
-        <View style={[styles.container, { paddingTop: statusBarHeight }]}>
+        <ImageBackground
+            source={require('../../assets/header.png')}
+            style={[styles.container, { paddingTop: statusBarHeight }]}
+            resizeMode="cover"
+        >
             <NotificationModal
                 visible={isNotificationModalVisible}
                 onClose={() => setNotificationModalVisible(false)}
             />
-            {/* Left side: Logo + Renew Button */}
+            {/* Left side: Logo + Renew Button OR Back + Title */}
             <View style={styles.leftSection}>
-                <View style={styles.logoContainer}>
-                    <Ionicons name="shield-checkmark" size={24} color={colors.text.inverse} />
-                    <View style={styles.proBadgeMini}>
-                        <Text style={styles.proBadgeMiniText}>PRO</Text>
+                {showBack || title ? (
+                    <View style={styles.titleContainer}>
+                        {showBack && (
+                            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                                <Ionicons name="arrow-back" size={24} color={colors.text.inverse} />
+                            </TouchableOpacity>
+                        )}
+                        {title && <Text style={styles.headerTitle}>{title}</Text>}
                     </View>
-                </View>
-
-                <TouchableOpacity style={styles.renewButton} onPress={onRenewPress}>
-                    <Text style={styles.renewButtonText}>Renew</Text>
-                </TouchableOpacity>
+                ) : (
+                    <>
+                        <Image
+                            source={require('../../assets/main_logo.png')}
+                            style={styles.mainLogo}
+                            resizeMode="contain"
+                        />
+                        <TouchableOpacity style={styles.renewButton} onPress={() => navigation.navigate('ProClub')}>
+                            <Text style={styles.renewButtonText}>Renew</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
-            {/* Right side: Search, Chat, Notifications OR custom */}
+            {/* Right side: Theme Toggle, Search, Chat, Notifications OR custom */}
             <View style={styles.rightSection}>
                 {rightIcons ? (
                     rightIcons.map((icon, index) => (
@@ -78,6 +101,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     ))
                 ) : (
                     <>
+                        {/* THEME TOGGLE ICON */}
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={toggleThemeMode}
+                        >
+                            <Ionicons
+                                name={isDark ? "sunny-outline" : "moon-outline"}
+                                size={22}
+                                color={colors.text.inverse}
+                            />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.iconButton}
                             onPress={onSearchPress ? onSearchPress : () => navigation.navigate('Search')}
@@ -104,19 +139,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     </>
                 )}
             </View>
-        </View>
+        </ImageBackground>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        // Remove fixed height, let padding and intrinsic content dictate height, or add a minimum height
-        minHeight: 60,
-        backgroundColor: '#005CE6', // Exact blue from design
+        minHeight: 120, // Increased height
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.md,
+        paddingBottom: spacing.md, // Added padding to push elements slightly up and expose more bottom background
+        overflow: 'hidden',
     },
     leftSection: {
         flexDirection: 'row',
@@ -132,6 +167,17 @@ const styles = StyleSheet.create({
     logoContainer: {
         marginHorizontal: spacing.sm,
         position: 'relative',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    mainLogo: {
+        width: 38,
+        height: 38,
+    },
+    headerBannerLogo: {
+        width: 180, // Wide banner format
+        height: 50,
+        marginLeft: -4, // Nudge left to align perfectly with typical padding
     },
     proBadgeMini: {
         position: 'absolute',
@@ -142,9 +188,23 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     proBadgeMiniText: {
-        color: colors.text.inverse,
+        color: staticColors.text.inverse,
         fontSize: 8,
         fontWeight: 'bold',
+    },
+    titleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingLeft: spacing.xs,
+    },
+    backButton: {
+        padding: spacing.xs,
+        marginRight: spacing.sm,
+    },
+    headerTitle: {
+        ...typography.presets.bodyLarge,
+        color: staticColors.text.inverse,
+        fontWeight: typography.weights.bold,
     },
     renewButton: {
         borderWidth: 1,
@@ -155,7 +215,7 @@ const styles = StyleSheet.create({
         marginLeft: spacing.sm,
     },
     renewButtonText: {
-        color: colors.text.inverse,
+        color: staticColors.text.inverse,
         ...typography.presets.bodySmall,
     },
     badgeContainer: {
@@ -171,7 +231,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 4,
     },
     badgeText: {
-        color: colors.text.inverse,
+        color: staticColors.text.inverse,
         fontSize: 10,
         fontWeight: 'bold',
     },

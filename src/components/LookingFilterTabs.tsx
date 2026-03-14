@@ -2,26 +2,46 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { colors, spacing, typography, radius } from '../theme';
 
-const CHIPS = ['Opponent', 'Team to Join', 'Player'];
+export type LookingFilterTab = 'Opponent' | 'Team to Join' | 'Player';
 
-export const LookingFilterTabs: React.FC = () => {
+interface LookingFilterTabsProps {
+    activeTab: LookingFilterTab;
+    onTabChange: (tab: LookingFilterTab) => void;
+    locationName?: string;
+}
+
+export const LookingFilterTabs: React.FC<LookingFilterTabsProps> = ({
+    activeTab,
+    onTabChange,
+    locationName = 'Bengaluru (Bangalore)'
+}) => {
+    const chips: LookingFilterTab[] = ['Opponent', 'Team to Join', 'Player'];
+
     return (
         <View style={styles.wrapper}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
                 {/* Location Tab */}
-                <TouchableOpacity style={styles.locationTab}>
-                    <Text style={styles.locationText}>Bengaluru (Bangalore)</Text>
+                <TouchableOpacity style={styles.locationTab} activeOpacity={0.7}>
+                    <Text style={styles.locationText}>{locationName}</Text>
                 </TouchableOpacity>
 
                 {/* Vertical Divider */}
                 <View style={styles.divider} />
 
                 {/* Filter Chips */}
-                {CHIPS.map((chip, index) => (
-                    <TouchableOpacity key={index} style={styles.chip}>
-                        <Text style={styles.chipText}>{chip}</Text>
-                    </TouchableOpacity>
-                ))}
+                {chips.map((chip, index) => {
+                    const isActive = activeTab === chip;
+                    return (
+                        <TouchableOpacity
+                            key={index}
+                            style={[styles.chip, isActive && styles.activeChip]}
+                            onPress={() => onTabChange(chip)}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[styles.chipText, isActive && styles.activeChipText]}>{chip}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
         </View>
     );
@@ -64,9 +84,15 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         marginHorizontal: 4,
     },
+    activeChip: {
+        backgroundColor: '#F97316',
+    },
     chipText: {
         color: '#F97316',
         ...typography.presets.bodySmall,
         fontWeight: typography.weights.medium,
+    },
+    activeChipText: {
+        color: colors.text.inverse,
     },
 });
