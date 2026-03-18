@@ -1,0 +1,4020 @@
+import { create } from 'zustand';
+import { Colors } from '../constants/Colors';
+
+export type PlayerRole = 'BAT' | 'BWL' | 'AR' | 'WK';
+
+export interface PlayerStats {
+  MAT: number;
+  INN: number;
+  RUNS: number;
+  HS: string;
+  AVG: number;
+  SR: number;
+  '100S': number;
+  '50S': number;
+  '4S': number;
+  '6S': number;
+  WKTS: number;
+  BBI: string;
+  ECON: number;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  role: PlayerRole;
+  roleColor: string;
+  stats: PlayerStats;
+  avatar?: string;
+  username?: string;
+  city?: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  shortName: string;
+  city: string;
+  yearFounded: string;
+  homeGround: string;
+  formats: string[];
+  overs: string;
+  themeColor: string;
+  players: number;
+  avatarColor: string;
+  avatarLetter: string;
+  roster: string[]; // List of Player IDs
+  logo?: string; // Team logo URI
+}
+
+export interface Invite {
+  id: string;
+  teamId: string;
+  senderId: string;
+  receiverId: string;
+  status: 'pending' | 'accepted' | 'declined';
+  type: 'in-app' | 'whatsapp';
+  timestamp: string;
+}
+
+export interface SocialRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  type: 'friend' | 'team_join';
+  status: 'pending' | 'accepted' | 'declined';
+  timestamp: string;
+  teamId?: string; // Only for team_join
+}
+
+export type CVC = 'C' | 'VC' | null;
+
+export interface Match {
+  id: string;
+  format: string;
+  teams: string;
+  teamAInfo: Team;
+  teamBInfo: Team;
+  playersA: Player[];
+  playersB: Player[];
+  cvcMap: Record<string, CVC>;
+  date: string;
+  time: string;
+  venue: string;
+  status: 'upcoming' | 'live' | 'completed';
+  overs: string;
+  notes?: string;
+  scheduledAt?: string;
+  scoreA?: string; // e.g. "145/4"
+  scoreB?: string; // e.g. "Yet to bat"
+  oversPlayed?: string; // e.g. "15.2"
+  currentStatus?: string; // e.g. "Mumbai needs 42 runs from 30 balls"
+}
+
+export interface InstantMatch {
+  id: string;
+  teamA: string;
+  teamB: string;
+  overs: number;
+  innings: {
+    batting: string;
+    score: number;
+    wickets: number;
+    balls: number;
+    scorecard: {
+      batsmen: Record<string, { runs: number; balls: number }>;
+      bowlers: Record<string, { wickets: number; runs: number; balls: number }>;
+    };
+  }[];
+  winner?: string;
+  date: string;
+}
+
+export interface TournamentFixture {
+  id: string;
+  round: string;
+  team1: string;
+  team2: string;
+  date: string;
+  time: string;
+  venue: string;
+  status: 'upcoming' | 'live' | 'completed';
+  result?: string;
+  t1score?: string;
+  t2score?: string;
+}
+
+export interface TournamentStanding {
+  team: string;
+  played: number;
+  won: number;
+  lost: number;
+  tied: number;
+  nrr: number;
+  pts: number;
+}
+
+export interface Tournament {
+  id: string;
+  name: string;
+  format: string;
+  matchType: string;
+  venue: string;
+  city: string;
+  startDate: string;
+  endDate: string;
+  maxTeams: number;
+  overs: number;
+  powerPlay: number;
+  dls: boolean;
+  status: 'live' | 'upcoming' | 'completed';
+  teams: string[]; // List of Team names or IDs
+  fixtures: TournamentFixture[];
+  standings: TournamentStanding[];
+  winner?: string;
+  banner?: string; // Tournament banner URI
+  rules?: string;
+  prizePool?: string;
+}
+
+export interface GlobalLiveMatch {
+  matchId: string;
+  strikerId: string;
+  nonStrikerId: string;
+  bowlerId: string;
+  strikerName: string;
+  nonStrikerName: string;
+  bowlerName: string;
+  score: number;
+  wickets: number;
+  balls: number;
+  strikerRuns: number;
+  strikerBalls: number;
+  nonStrikerRuns: number;
+  nonStrikerBalls: number;
+  bowlerWickets: number;
+  bowlerRuns: number;
+  bowlerBalls: number;
+  currentOverBalls: (string | number)[];
+  battingTeam: string;
+  bowlingTeam: string;
+}
+
+interface TeamState {
+  teams: Team[];
+  players: Record<string, Player>;
+  friends: string[]; 
+  invites: Invite[];
+  following: string[]; // List of Player or Team IDs
+  socialRequests: SocialRequest[];
+  addTeam: (team: Team) => void;
+  updateTeam: (team: Team) => void;
+  deleteTeam: (id: string) => void;
+  addPlayerToTeam: (teamId: string, player: Player) => void;
+  removePlayerFromTeam: (teamId: string, playerId: string) => void;
+  updatePlayerStats: (playerId: string, newStats: Partial<PlayerStats>) => void;
+  sendInvite: (invite: Omit<Invite, 'id' | 'timestamp' | 'status'>) => void;
+  acceptInvite: (inviteId: string) => void;
+  sendSocialRequest: (request: Omit<SocialRequest, 'id' | 'timestamp' | 'status'>) => void;
+  respondToSocialRequest: (requestId: string, status: 'accepted' | 'declined') => void;
+  toggleFollow: (id: string) => void;
+  matches: Match[];
+  addMatch: (match: Match) => void;
+  updateMatchStatus: (matchId: string, status: Match['status']) => void;
+  instantMatches: InstantMatch[];
+  addInstantMatch: (match: InstantMatch) => void;
+  deleteInstantMatch: (id: string) => void;
+  tournaments: Tournament[];
+  addTournament: (tournament: Tournament) => void;
+  updateTournament: (tournament: Tournament) => void;
+  generateTournamentFixtures: (tournamentId: string) => void;
+  globalLiveMatch: GlobalLiveMatch | null;
+  updateGlobalLiveMatch: (match: Partial<GlobalLiveMatch> | null) => void;
+}
+
+const INITIAL_PLAYERS: Record<string, Player> = {
+  "p1": {
+    "id": "p1",
+    "name": "Raj Sharma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 3,
+      "INN": 40,
+      "RUNS": 1186,
+      "HS": "102",
+      "AVG": 21,
+      "SR": 163.6,
+      "100S": 1,
+      "50S": 0,
+      "4S": 50,
+      "6S": 25,
+      "WKTS": 52,
+      "BBI": "3/7",
+      "ECON": 4.9
+    }
+  },
+  "p2": {
+    "id": "p2",
+    "name": "Manoj Sharma",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 1,
+      "INN": 25,
+      "RUNS": 645,
+      "HS": "138",
+      "AVG": 22.4,
+      "SR": 168,
+      "100S": 2,
+      "50S": 5,
+      "4S": 141,
+      "6S": 67,
+      "WKTS": 11,
+      "BBI": "1/19",
+      "ECON": 4.2
+    }
+  },
+  "p3": {
+    "id": "p3",
+    "name": "Deepak Gupta",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 31,
+      "INN": 12,
+      "RUNS": 381,
+      "HS": "12",
+      "AVG": 45.9,
+      "SR": 159.2,
+      "100S": 4,
+      "50S": 14,
+      "4S": 47,
+      "6S": 64,
+      "WKTS": 56,
+      "BBI": "2/3",
+      "ECON": 5.7
+    }
+  },
+  "p4": {
+    "id": "p4",
+    "name": "Raj Karthik",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 10,
+      "INN": 15,
+      "RUNS": 1921,
+      "HS": "14",
+      "AVG": 28.8,
+      "SR": 83,
+      "100S": 2,
+      "50S": 14,
+      "4S": 32,
+      "6S": 68,
+      "WKTS": 38,
+      "BBI": "0/32",
+      "ECON": 8.3
+    }
+  },
+  "p5": {
+    "id": "p5",
+    "name": "Hardik Roy",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 47,
+      "INN": 39,
+      "RUNS": 1793,
+      "HS": "45",
+      "AVG": 30.5,
+      "SR": 119.1,
+      "100S": 3,
+      "50S": 13,
+      "4S": 77,
+      "6S": 54,
+      "WKTS": 17,
+      "BBI": "4/21",
+      "ECON": 8.1
+    }
+  },
+  "p6": {
+    "id": "p6",
+    "name": "Pankaj Sen",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 36,
+      "INN": 8,
+      "RUNS": 685,
+      "HS": "60",
+      "AVG": 11.9,
+      "SR": 137.4,
+      "100S": 0,
+      "50S": 4,
+      "4S": 8,
+      "6S": 5,
+      "WKTS": 20,
+      "BBI": "0/32",
+      "ECON": 5.6
+    }
+  },
+  "p7": {
+    "id": "p7",
+    "name": "Anil Pant",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 34,
+      "INN": 27,
+      "RUNS": 1347,
+      "HS": "19",
+      "AVG": 28.2,
+      "SR": 127.3,
+      "100S": 4,
+      "50S": 9,
+      "4S": 95,
+      "6S": 16,
+      "WKTS": 18,
+      "BBI": "2/23",
+      "ECON": 4.7
+    }
+  },
+  "p8": {
+    "id": "p8",
+    "name": "Virat Kohli",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 24,
+      "INN": 17,
+      "RUNS": 1437,
+      "HS": "55",
+      "AVG": 16,
+      "SR": 149.2,
+      "100S": 2,
+      "50S": 9,
+      "4S": 138,
+      "6S": 58,
+      "WKTS": 26,
+      "BBI": "3/8",
+      "ECON": 5.4
+    }
+  },
+  "p9": {
+    "id": "p9",
+    "name": "Sumit Bhuvi",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 45,
+      "INN": 41,
+      "RUNS": 1642,
+      "HS": "70",
+      "AVG": 37,
+      "SR": 159.6,
+      "100S": 1,
+      "50S": 13,
+      "4S": 15,
+      "6S": 8,
+      "WKTS": 37,
+      "BBI": "3/36",
+      "ECON": 5
+    }
+  },
+  "p10": {
+    "id": "p10",
+    "name": "Ravindra Das",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 50,
+      "INN": 22,
+      "RUNS": 643,
+      "HS": "64",
+      "AVG": 15.4,
+      "SR": 112.1,
+      "100S": 3,
+      "50S": 11,
+      "4S": 113,
+      "6S": 48,
+      "WKTS": 6,
+      "BBI": "5/36",
+      "ECON": 5.1
+    }
+  },
+  "p11": {
+    "id": "p11",
+    "name": "Sachin Siraj",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 32,
+      "INN": 10,
+      "RUNS": 821,
+      "HS": "130",
+      "AVG": 42.7,
+      "SR": 179.3,
+      "100S": 2,
+      "50S": 0,
+      "4S": 89,
+      "6S": 0,
+      "WKTS": 26,
+      "BBI": "5/39",
+      "ECON": 7.6
+    }
+  },
+  "p12": {
+    "id": "p12",
+    "name": "Abhishek Das",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 45,
+      "INN": 7,
+      "RUNS": 1935,
+      "HS": "111",
+      "AVG": 40.1,
+      "SR": 156.6,
+      "100S": 4,
+      "50S": 5,
+      "4S": 61,
+      "6S": 29,
+      "WKTS": 38,
+      "BBI": "2/11",
+      "ECON": 7.7
+    }
+  },
+  "p13": {
+    "id": "p13",
+    "name": "Arjun Bhuvi",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 31,
+      "INN": 9,
+      "RUNS": 397,
+      "HS": "36",
+      "AVG": 17.7,
+      "SR": 128.9,
+      "100S": 1,
+      "50S": 9,
+      "4S": 80,
+      "6S": 42,
+      "WKTS": 48,
+      "BBI": "3/24",
+      "ECON": 5.4
+    }
+  },
+  "p14": {
+    "id": "p14",
+    "name": "Karan Kumar",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 50,
+      "INN": 5,
+      "RUNS": 780,
+      "HS": "101",
+      "AVG": 26.9,
+      "SR": 139.2,
+      "100S": 3,
+      "50S": 9,
+      "4S": 144,
+      "6S": 4,
+      "WKTS": 41,
+      "BBI": "3/9",
+      "ECON": 4.8
+    }
+  },
+  "p15": {
+    "id": "p15",
+    "name": "Shikhar Sharma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 22,
+      "INN": 30,
+      "RUNS": 1454,
+      "HS": "48",
+      "AVG": 27.7,
+      "SR": 83.2,
+      "100S": 1,
+      "50S": 5,
+      "4S": 47,
+      "6S": 56,
+      "WKTS": 27,
+      "BBI": "2/10",
+      "ECON": 6.3
+    }
+  },
+  "p16": {
+    "id": "p16",
+    "name": "Pankaj Bumrah",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 28,
+      "INN": 32,
+      "RUNS": 941,
+      "HS": "133",
+      "AVG": 25,
+      "SR": 96,
+      "100S": 4,
+      "50S": 1,
+      "4S": 131,
+      "6S": 52,
+      "WKTS": 45,
+      "BBI": "5/22",
+      "ECON": 4.1
+    }
+  },
+  "p17": {
+    "id": "p17",
+    "name": "Shreyas Singh",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 4,
+      "INN": 12,
+      "RUNS": 1640,
+      "HS": "17",
+      "AVG": 25.4,
+      "SR": 160.6,
+      "100S": 1,
+      "50S": 14,
+      "4S": 35,
+      "6S": 60,
+      "WKTS": 48,
+      "BBI": "5/30",
+      "ECON": 7
+    }
+  },
+  "p18": {
+    "id": "p18",
+    "name": "Shikhar Kohli",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 21,
+      "INN": 18,
+      "RUNS": 1440,
+      "HS": "52",
+      "AVG": 7.5,
+      "SR": 145.1,
+      "100S": 1,
+      "50S": 11,
+      "4S": 122,
+      "6S": 38,
+      "WKTS": 20,
+      "BBI": "4/21",
+      "ECON": 5.3
+    }
+  },
+  "p19": {
+    "id": "p19",
+    "name": "Anil Verma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 40,
+      "INN": 39,
+      "RUNS": 348,
+      "HS": "76",
+      "AVG": 45.3,
+      "SR": 96.4,
+      "100S": 2,
+      "50S": 9,
+      "4S": 142,
+      "6S": 60,
+      "WKTS": 53,
+      "BBI": "1/11",
+      "ECON": 6.7
+    }
+  },
+  "p20": {
+    "id": "p20",
+    "name": "Shreyas Sharma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 19,
+      "INN": 5,
+      "RUNS": 169,
+      "HS": "129",
+      "AVG": 40.1,
+      "SR": 126.8,
+      "100S": 2,
+      "50S": 9,
+      "4S": 129,
+      "6S": 66,
+      "WKTS": 28,
+      "BBI": "5/1",
+      "ECON": 6.8
+    }
+  },
+  "p21": {
+    "id": "p21",
+    "name": "Sanjay Ashwin",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 13,
+      "INN": 2,
+      "RUNS": 1457,
+      "HS": "149",
+      "AVG": 26.1,
+      "SR": 80.1,
+      "100S": 4,
+      "50S": 8,
+      "4S": 143,
+      "6S": 75,
+      "WKTS": 47,
+      "BBI": "5/20",
+      "ECON": 7
+    }
+  },
+  "p22": {
+    "id": "p22",
+    "name": "Vikram Dhoni",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 37,
+      "INN": 18,
+      "RUNS": 280,
+      "HS": "102",
+      "AVG": 45.2,
+      "SR": 110.6,
+      "100S": 4,
+      "50S": 10,
+      "4S": 81,
+      "6S": 0,
+      "WKTS": 5,
+      "BBI": "5/19",
+      "ECON": 5.2
+    }
+  },
+  "p23": {
+    "id": "p23",
+    "name": "Shreyas Chopra",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 45,
+      "INN": 37,
+      "RUNS": 1738,
+      "HS": "82",
+      "AVG": 40.4,
+      "SR": 85.8,
+      "100S": 0,
+      "50S": 12,
+      "4S": 136,
+      "6S": 48,
+      "WKTS": 52,
+      "BBI": "5/15",
+      "ECON": 8.4
+    }
+  },
+  "p24": {
+    "id": "p24",
+    "name": "Rohan Gill",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 13,
+      "INN": 7,
+      "RUNS": 337,
+      "HS": "59",
+      "AVG": 47.8,
+      "SR": 125.7,
+      "100S": 1,
+      "50S": 5,
+      "4S": 21,
+      "6S": 69,
+      "WKTS": 47,
+      "BBI": "4/10",
+      "ECON": 8.4
+    }
+  },
+  "p25": {
+    "id": "p25",
+    "name": "Sanjay Pandey",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 9,
+      "INN": 12,
+      "RUNS": 501,
+      "HS": "72",
+      "AVG": 11.4,
+      "SR": 82,
+      "100S": 2,
+      "50S": 3,
+      "4S": 55,
+      "6S": 34,
+      "WKTS": 4,
+      "BBI": "3/16",
+      "ECON": 4.8
+    }
+  },
+  "p26": {
+    "id": "p26",
+    "name": "Ishant Sharma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 1,
+      "INN": 6,
+      "RUNS": 1402,
+      "HS": "145",
+      "AVG": 32.6,
+      "SR": 120.4,
+      "100S": 0,
+      "50S": 6,
+      "4S": 58,
+      "6S": 10,
+      "WKTS": 27,
+      "BBI": "0/23",
+      "ECON": 8.8
+    }
+  },
+  "p27": {
+    "id": "p27",
+    "name": "Raj Verma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 6,
+      "INN": 21,
+      "RUNS": 1555,
+      "HS": "116",
+      "AVG": 23.1,
+      "SR": 140.3,
+      "100S": 4,
+      "50S": 1,
+      "4S": 7,
+      "6S": 57,
+      "WKTS": 55,
+      "BBI": "2/12",
+      "ECON": 7.3
+    }
+  },
+  "p28": {
+    "id": "p28",
+    "name": "Sanjay Gill",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 3,
+      "INN": 34,
+      "RUNS": 79,
+      "HS": "106",
+      "AVG": 32.2,
+      "SR": 119.7,
+      "100S": 2,
+      "50S": 7,
+      "4S": 44,
+      "6S": 43,
+      "WKTS": 1,
+      "BBI": "1/1",
+      "ECON": 7.4
+    }
+  },
+  "p29": {
+    "id": "p29",
+    "name": "Arjun Bumrah",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 33,
+      "INN": 26,
+      "RUNS": 513,
+      "HS": "144",
+      "AVG": 21,
+      "SR": 115.7,
+      "100S": 1,
+      "50S": 14,
+      "4S": 115,
+      "6S": 61,
+      "WKTS": 13,
+      "BBI": "3/0",
+      "ECON": 6.4
+    }
+  },
+  "p30": {
+    "id": "p30",
+    "name": "Hardik Jadeja",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 28,
+      "INN": 28,
+      "RUNS": 1800,
+      "HS": "138",
+      "AVG": 28,
+      "SR": 108.4,
+      "100S": 4,
+      "50S": 11,
+      "4S": 97,
+      "6S": 64,
+      "WKTS": 3,
+      "BBI": "1/34",
+      "ECON": 9
+    }
+  },
+  "p31": {
+    "id": "p31",
+    "name": "Mohammed Pandey",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 30,
+      "INN": 33,
+      "RUNS": 946,
+      "HS": "144",
+      "AVG": 12.2,
+      "SR": 172.8,
+      "100S": 3,
+      "50S": 13,
+      "4S": 4,
+      "6S": 15,
+      "WKTS": 17,
+      "BBI": "1/8",
+      "ECON": 5.2
+    }
+  },
+  "p32": {
+    "id": "p32",
+    "name": "Sachin Kuldeep",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 13,
+      "INN": 7,
+      "RUNS": 1496,
+      "HS": "59",
+      "AVG": 27.8,
+      "SR": 139.4,
+      "100S": 0,
+      "50S": 10,
+      "4S": 9,
+      "6S": 69,
+      "WKTS": 2,
+      "BBI": "4/13",
+      "ECON": 5.6
+    }
+  },
+  "p33": {
+    "id": "p33",
+    "name": "Raj Karthik",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 32,
+      "INN": 34,
+      "RUNS": 1430,
+      "HS": "90",
+      "AVG": 22.7,
+      "SR": 163.3,
+      "100S": 2,
+      "50S": 3,
+      "4S": 92,
+      "6S": 3,
+      "WKTS": 58,
+      "BBI": "1/25",
+      "ECON": 8.6
+    }
+  },
+  "p34": {
+    "id": "p34",
+    "name": "Mohammed Karthik",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 6,
+      "INN": 21,
+      "RUNS": 311,
+      "HS": "130",
+      "AVG": 21.3,
+      "SR": 149.2,
+      "100S": 4,
+      "50S": 10,
+      "4S": 139,
+      "6S": 35,
+      "WKTS": 11,
+      "BBI": "0/2",
+      "ECON": 8.2
+    }
+  },
+  "p35": {
+    "id": "p35",
+    "name": "Umesh Verma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 16,
+      "INN": 26,
+      "RUNS": 389,
+      "HS": "141",
+      "AVG": 40,
+      "SR": 140.9,
+      "100S": 4,
+      "50S": 5,
+      "4S": 149,
+      "6S": 61,
+      "WKTS": 46,
+      "BBI": "3/1",
+      "ECON": 6
+    }
+  },
+  "p36": {
+    "id": "p36",
+    "name": "Arjun Bhuvi",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 9,
+      "INN": 13,
+      "RUNS": 1739,
+      "HS": "103",
+      "AVG": 26.5,
+      "SR": 81.2,
+      "100S": 3,
+      "50S": 12,
+      "4S": 62,
+      "6S": 62,
+      "WKTS": 18,
+      "BBI": "2/34",
+      "ECON": 7.2
+    }
+  },
+  "p37": {
+    "id": "p37",
+    "name": "MS Mishra",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 17,
+      "INN": 11,
+      "RUNS": 1565,
+      "HS": "101",
+      "AVG": 47.3,
+      "SR": 104.3,
+      "100S": 0,
+      "50S": 5,
+      "4S": 24,
+      "6S": 38,
+      "WKTS": 54,
+      "BBI": "5/19",
+      "ECON": 5.6
+    }
+  },
+  "p38": {
+    "id": "p38",
+    "name": "KL Verma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 11,
+      "INN": 27,
+      "RUNS": 695,
+      "HS": "40",
+      "AVG": 11,
+      "SR": 84.9,
+      "100S": 3,
+      "50S": 8,
+      "4S": 18,
+      "6S": 57,
+      "WKTS": 8,
+      "BBI": "3/23",
+      "ECON": 5.6
+    }
+  },
+  "p39": {
+    "id": "p39",
+    "name": "Sachin Joshi",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 39,
+      "INN": 38,
+      "RUNS": 603,
+      "HS": "137",
+      "AVG": 17.6,
+      "SR": 173.5,
+      "100S": 0,
+      "50S": 9,
+      "4S": 139,
+      "6S": 62,
+      "WKTS": 29,
+      "BBI": "2/31",
+      "ECON": 4.4
+    }
+  },
+  "p40": {
+    "id": "p40",
+    "name": "Pankaj Joshi",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 42,
+      "INN": 30,
+      "RUNS": 989,
+      "HS": "84",
+      "AVG": 14.8,
+      "SR": 159.8,
+      "100S": 1,
+      "50S": 14,
+      "4S": 118,
+      "6S": 49,
+      "WKTS": 59,
+      "BBI": "1/5",
+      "ECON": 6.3
+    }
+  },
+  "p41": {
+    "id": "p41",
+    "name": "Vijay Jadeja",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 22,
+      "INN": 20,
+      "RUNS": 330,
+      "HS": "49",
+      "AVG": 20.2,
+      "SR": 161.9,
+      "100S": 4,
+      "50S": 13,
+      "4S": 146,
+      "6S": 10,
+      "WKTS": 32,
+      "BBI": "1/36",
+      "ECON": 8.7
+    }
+  },
+  "p42": {
+    "id": "p42",
+    "name": "Amit Verma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 15,
+      "INN": 30,
+      "RUNS": 328,
+      "HS": "118",
+      "AVG": 30.1,
+      "SR": 99.7,
+      "100S": 4,
+      "50S": 1,
+      "4S": 131,
+      "6S": 48,
+      "WKTS": 34,
+      "BBI": "4/28",
+      "ECON": 7.6
+    }
+  },
+  "p43": {
+    "id": "p43",
+    "name": "Deepak Dhoni",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 35,
+      "INN": 39,
+      "RUNS": 1979,
+      "HS": "28",
+      "AVG": 5.1,
+      "SR": 138.5,
+      "100S": 4,
+      "50S": 6,
+      "4S": 107,
+      "6S": 53,
+      "WKTS": 18,
+      "BBI": "5/18",
+      "ECON": 4.8
+    }
+  },
+  "p44": {
+    "id": "p44",
+    "name": "Arjun Roy",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 43,
+      "INN": 5,
+      "RUNS": 202,
+      "HS": "43",
+      "AVG": 34.7,
+      "SR": 128.4,
+      "100S": 0,
+      "50S": 3,
+      "4S": 2,
+      "6S": 69,
+      "WKTS": 54,
+      "BBI": "4/22",
+      "ECON": 4.9
+    }
+  },
+  "p45": {
+    "id": "p45",
+    "name": "Raj Das",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 18,
+      "INN": 27,
+      "RUNS": 1371,
+      "HS": "0",
+      "AVG": 26.8,
+      "SR": 89.5,
+      "100S": 3,
+      "50S": 9,
+      "4S": 132,
+      "6S": 29,
+      "WKTS": 31,
+      "BBI": "2/31",
+      "ECON": 7.5
+    }
+  },
+  "p46": {
+    "id": "p46",
+    "name": "MS Jadeja",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 6,
+      "INN": 26,
+      "RUNS": 489,
+      "HS": "31",
+      "AVG": 42.8,
+      "SR": 119.8,
+      "100S": 0,
+      "50S": 12,
+      "4S": 37,
+      "6S": 17,
+      "WKTS": 16,
+      "BBI": "4/7",
+      "ECON": 4
+    }
+  },
+  "p47": {
+    "id": "p47",
+    "name": "Sanjay Gupta",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 8,
+      "INN": 1,
+      "RUNS": 1616,
+      "HS": "103",
+      "AVG": 16.7,
+      "SR": 120.5,
+      "100S": 1,
+      "50S": 8,
+      "4S": 78,
+      "6S": 63,
+      "WKTS": 2,
+      "BBI": "3/18",
+      "ECON": 5.2
+    }
+  },
+  "p48": {
+    "id": "p48",
+    "name": "Jasprit Pant",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 1,
+      "INN": 14,
+      "RUNS": 991,
+      "HS": "138",
+      "AVG": 33.4,
+      "SR": 146,
+      "100S": 0,
+      "50S": 9,
+      "4S": 67,
+      "6S": 1,
+      "WKTS": 24,
+      "BBI": "4/23",
+      "ECON": 4.5
+    }
+  },
+  "p49": {
+    "id": "p49",
+    "name": "Amit Bhuvi",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 34,
+      "INN": 25,
+      "RUNS": 1019,
+      "HS": "85",
+      "AVG": 41,
+      "SR": 160.7,
+      "100S": 4,
+      "50S": 7,
+      "4S": 11,
+      "6S": 79,
+      "WKTS": 15,
+      "BBI": "3/2",
+      "ECON": 4.2
+    }
+  },
+  "p50": {
+    "id": "p50",
+    "name": "Umesh Kohli",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 21,
+      "INN": 13,
+      "RUNS": 1959,
+      "HS": "134",
+      "AVG": 17.1,
+      "SR": 137,
+      "100S": 1,
+      "50S": 1,
+      "4S": 119,
+      "6S": 21,
+      "WKTS": 25,
+      "BBI": "1/38",
+      "ECON": 7
+    }
+  },
+  "p51": {
+    "id": "p51",
+    "name": "Sunil Pandey",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 15,
+      "INN": 3,
+      "RUNS": 1263,
+      "HS": "104",
+      "AVG": 21.7,
+      "SR": 162.8,
+      "100S": 1,
+      "50S": 8,
+      "4S": 74,
+      "6S": 60,
+      "WKTS": 11,
+      "BBI": "4/18",
+      "ECON": 7
+    }
+  },
+  "p52": {
+    "id": "p52",
+    "name": "Rishabh Joshi",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 25,
+      "INN": 19,
+      "RUNS": 1759,
+      "HS": "109",
+      "AVG": 20.5,
+      "SR": 141.9,
+      "100S": 4,
+      "50S": 0,
+      "4S": 114,
+      "6S": 14,
+      "WKTS": 43,
+      "BBI": "5/0",
+      "ECON": 4.8
+    }
+  },
+  "p53": {
+    "id": "p53",
+    "name": "Pankaj Gill",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 35,
+      "INN": 14,
+      "RUNS": 597,
+      "HS": "5",
+      "AVG": 7.3,
+      "SR": 98.5,
+      "100S": 0,
+      "50S": 0,
+      "4S": 85,
+      "6S": 53,
+      "WKTS": 8,
+      "BBI": "0/35",
+      "ECON": 5.7
+    }
+  },
+  "p54": {
+    "id": "p54",
+    "name": "Sunil Joshi",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 16,
+      "INN": 4,
+      "RUNS": 1650,
+      "HS": "61",
+      "AVG": 30.8,
+      "SR": 158.2,
+      "100S": 0,
+      "50S": 10,
+      "4S": 10,
+      "6S": 6,
+      "WKTS": 52,
+      "BBI": "3/18",
+      "ECON": 5.6
+    }
+  },
+  "p55": {
+    "id": "p55",
+    "name": "Shikhar Singh",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 47,
+      "INN": 27,
+      "RUNS": 984,
+      "HS": "30",
+      "AVG": 8.4,
+      "SR": 128.3,
+      "100S": 2,
+      "50S": 6,
+      "4S": 116,
+      "6S": 32,
+      "WKTS": 5,
+      "BBI": "3/4",
+      "ECON": 8.6
+    }
+  },
+  "p56": {
+    "id": "p56",
+    "name": "Arjun Kumar",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 45,
+      "INN": 36,
+      "RUNS": 1568,
+      "HS": "61",
+      "AVG": 20.7,
+      "SR": 129.5,
+      "100S": 0,
+      "50S": 14,
+      "4S": 126,
+      "6S": 76,
+      "WKTS": 48,
+      "BBI": "0/13",
+      "ECON": 8.4
+    }
+  },
+  "p57": {
+    "id": "p57",
+    "name": "Pankaj Pandey",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 42,
+      "INN": 3,
+      "RUNS": 1566,
+      "HS": "69",
+      "AVG": 44.6,
+      "SR": 127.9,
+      "100S": 4,
+      "50S": 2,
+      "4S": 98,
+      "6S": 41,
+      "WKTS": 57,
+      "BBI": "1/24",
+      "ECON": 6.7
+    }
+  },
+  "p58": {
+    "id": "p58",
+    "name": "Arjun Kohli",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 50,
+      "INN": 5,
+      "RUNS": 290,
+      "HS": "60",
+      "AVG": 5.7,
+      "SR": 131,
+      "100S": 3,
+      "50S": 7,
+      "4S": 16,
+      "6S": 78,
+      "WKTS": 20,
+      "BBI": "4/36",
+      "ECON": 7.5
+    }
+  },
+  "p59": {
+    "id": "p59",
+    "name": "Vijay Singh",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 43,
+      "INN": 39,
+      "RUNS": 364,
+      "HS": "105",
+      "AVG": 36.8,
+      "SR": 170.9,
+      "100S": 2,
+      "50S": 11,
+      "4S": 27,
+      "6S": 37,
+      "WKTS": 53,
+      "BBI": "3/11",
+      "ECON": 4.3
+    }
+  },
+  "p60": {
+    "id": "p60",
+    "name": "Rishabh Bumrah",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 4,
+      "INN": 9,
+      "RUNS": 1585,
+      "HS": "71",
+      "AVG": 42.2,
+      "SR": 163.5,
+      "100S": 3,
+      "50S": 4,
+      "4S": 65,
+      "6S": 70,
+      "WKTS": 32,
+      "BBI": "4/2",
+      "ECON": 5.3
+    }
+  },
+  "p61": {
+    "id": "p61",
+    "name": "KL Sharma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 19,
+      "INN": 3,
+      "RUNS": 1163,
+      "HS": "44",
+      "AVG": 11.2,
+      "SR": 171.9,
+      "100S": 0,
+      "50S": 0,
+      "4S": 71,
+      "6S": 20,
+      "WKTS": 49,
+      "BBI": "5/39",
+      "ECON": 7.9
+    }
+  },
+  "p62": {
+    "id": "p62",
+    "name": "Hardik Yadav",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 40,
+      "INN": 40,
+      "RUNS": 1250,
+      "HS": "64",
+      "AVG": 11.3,
+      "SR": 82.6,
+      "100S": 3,
+      "50S": 1,
+      "4S": 114,
+      "6S": 45,
+      "WKTS": 44,
+      "BBI": "2/30",
+      "ECON": 8.4
+    }
+  },
+  "p63": {
+    "id": "p63",
+    "name": "Pankaj Gupta",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 37,
+      "INN": 32,
+      "RUNS": 1632,
+      "HS": "146",
+      "AVG": 37.6,
+      "SR": 172.2,
+      "100S": 4,
+      "50S": 9,
+      "4S": 46,
+      "6S": 41,
+      "WKTS": 2,
+      "BBI": "0/22",
+      "ECON": 6.7
+    }
+  },
+  "p64": {
+    "id": "p64",
+    "name": "Rohan Ashwin",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 47,
+      "INN": 1,
+      "RUNS": 1908,
+      "HS": "105",
+      "AVG": 19,
+      "SR": 145,
+      "100S": 2,
+      "50S": 0,
+      "4S": 35,
+      "6S": 12,
+      "WKTS": 16,
+      "BBI": "4/17",
+      "ECON": 8.4
+    }
+  },
+  "p65": {
+    "id": "p65",
+    "name": "Sunil Verma",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 12,
+      "INN": 45,
+      "RUNS": 1605,
+      "HS": "125",
+      "AVG": 18.5,
+      "SR": 92.3,
+      "100S": 1,
+      "50S": 10,
+      "4S": 12,
+      "6S": 74,
+      "WKTS": 52,
+      "BBI": "2/3",
+      "ECON": 7.3
+    }
+  },
+  "p66": {
+    "id": "p66",
+    "name": "Umesh Mishra",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 22,
+      "INN": 39,
+      "RUNS": 495,
+      "HS": "76",
+      "AVG": 20.8,
+      "SR": 156.7,
+      "100S": 4,
+      "50S": 5,
+      "4S": 95,
+      "6S": 8,
+      "WKTS": 58,
+      "BBI": "3/37",
+      "ECON": 5.7
+    }
+  },
+  "p67": {
+    "id": "p67",
+    "name": "Shreyas Kuldeep",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 12,
+      "INN": 38,
+      "RUNS": 1153,
+      "HS": "77",
+      "AVG": 32.4,
+      "SR": 82.4,
+      "100S": 1,
+      "50S": 5,
+      "4S": 73,
+      "6S": 22,
+      "WKTS": 1,
+      "BBI": "2/24",
+      "ECON": 5.5
+    }
+  },
+  "p68": {
+    "id": "p68",
+    "name": "Hardik Jadeja",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 6,
+      "INN": 40,
+      "RUNS": 1752,
+      "HS": "101",
+      "AVG": 47.1,
+      "SR": 129.5,
+      "100S": 4,
+      "50S": 1,
+      "4S": 9,
+      "6S": 69,
+      "WKTS": 57,
+      "BBI": "4/11",
+      "ECON": 4.3
+    }
+  },
+  "p69": {
+    "id": "p69",
+    "name": "Virat Ashwin",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 47,
+      "INN": 31,
+      "RUNS": 745,
+      "HS": "51",
+      "AVG": 21,
+      "SR": 174.9,
+      "100S": 2,
+      "50S": 6,
+      "4S": 91,
+      "6S": 38,
+      "WKTS": 18,
+      "BBI": "1/33",
+      "ECON": 6.7
+    }
+  },
+  "p70": {
+    "id": "p70",
+    "name": "Vikram Iyer",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 46,
+      "INN": 21,
+      "RUNS": 1023,
+      "HS": "38",
+      "AVG": 43.4,
+      "SR": 165.8,
+      "100S": 3,
+      "50S": 5,
+      "4S": 113,
+      "6S": 50,
+      "WKTS": 32,
+      "BBI": "5/18",
+      "ECON": 6.4
+    }
+  },
+  "p71": {
+    "id": "p71",
+    "name": "Shreyas Jadeja",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 4,
+      "INN": 3,
+      "RUNS": 1955,
+      "HS": "11",
+      "AVG": 29.4,
+      "SR": 168.9,
+      "100S": 0,
+      "50S": 12,
+      "4S": 122,
+      "6S": 29,
+      "WKTS": 25,
+      "BBI": "2/23",
+      "ECON": 4.2
+    }
+  },
+  "p72": {
+    "id": "p72",
+    "name": "Hardik Karthik",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 18,
+      "INN": 29,
+      "RUNS": 250,
+      "HS": "86",
+      "AVG": 42.1,
+      "SR": 162.8,
+      "100S": 3,
+      "50S": 11,
+      "4S": 74,
+      "6S": 44,
+      "WKTS": 10,
+      "BBI": "0/4",
+      "ECON": 5.5
+    }
+  },
+  "p73": {
+    "id": "p73",
+    "name": "Rahul Bumrah",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 3,
+      "INN": 23,
+      "RUNS": 311,
+      "HS": "82",
+      "AVG": 49.2,
+      "SR": 92.7,
+      "100S": 0,
+      "50S": 12,
+      "4S": 4,
+      "6S": 42,
+      "WKTS": 49,
+      "BBI": "1/10",
+      "ECON": 8.7
+    }
+  },
+  "p74": {
+    "id": "p74",
+    "name": "Pankaj Patel",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 7,
+      "INN": 19,
+      "RUNS": 1770,
+      "HS": "14",
+      "AVG": 21.5,
+      "SR": 166.1,
+      "100S": 2,
+      "50S": 3,
+      "4S": 50,
+      "6S": 21,
+      "WKTS": 7,
+      "BBI": "0/25",
+      "ECON": 8.7
+    }
+  },
+  "p75": {
+    "id": "p75",
+    "name": "Rohit Ashwin",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 33,
+      "INN": 17,
+      "RUNS": 450,
+      "HS": "81",
+      "AVG": 39.3,
+      "SR": 130,
+      "100S": 1,
+      "50S": 5,
+      "4S": 114,
+      "6S": 60,
+      "WKTS": 44,
+      "BBI": "4/29",
+      "ECON": 6.1
+    }
+  },
+  "p76": {
+    "id": "p76",
+    "name": "Deepak Chopra",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 9,
+      "INN": 18,
+      "RUNS": 393,
+      "HS": "127",
+      "AVG": 32.9,
+      "SR": 109.7,
+      "100S": 2,
+      "50S": 4,
+      "4S": 50,
+      "6S": 38,
+      "WKTS": 33,
+      "BBI": "4/23",
+      "ECON": 8.7
+    }
+  },
+  "p77": {
+    "id": "p77",
+    "name": "Sachin Patel",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 27,
+      "INN": 2,
+      "RUNS": 1799,
+      "HS": "2",
+      "AVG": 35.2,
+      "SR": 90.7,
+      "100S": 1,
+      "50S": 5,
+      "4S": 38,
+      "6S": 44,
+      "WKTS": 1,
+      "BBI": "1/15",
+      "ECON": 4.3
+    }
+  },
+  "p78": {
+    "id": "p78",
+    "name": "Karan Bumrah",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 3,
+      "INN": 9,
+      "RUNS": 1198,
+      "HS": "3",
+      "AVG": 7.4,
+      "SR": 85.3,
+      "100S": 3,
+      "50S": 3,
+      "4S": 79,
+      "6S": 32,
+      "WKTS": 22,
+      "BBI": "3/6",
+      "ECON": 8.1
+    }
+  },
+  "p79": {
+    "id": "p79",
+    "name": "Rohit Dhoni",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 46,
+      "INN": 12,
+      "RUNS": 620,
+      "HS": "97",
+      "AVG": 37.7,
+      "SR": 176.7,
+      "100S": 4,
+      "50S": 6,
+      "4S": 142,
+      "6S": 27,
+      "WKTS": 43,
+      "BBI": "2/14",
+      "ECON": 5.7
+    }
+  },
+  "p80": {
+    "id": "p80",
+    "name": "Deepak Bhuvi",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 21,
+      "INN": 20,
+      "RUNS": 1946,
+      "HS": "38",
+      "AVG": 9.6,
+      "SR": 108.3,
+      "100S": 2,
+      "50S": 2,
+      "4S": 56,
+      "6S": 11,
+      "WKTS": 23,
+      "BBI": "4/14",
+      "ECON": 8
+    }
+  },
+  "p81": {
+    "id": "p81",
+    "name": "Abhishek Shami",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 39,
+      "INN": 27,
+      "RUNS": 1252,
+      "HS": "144",
+      "AVG": 48.4,
+      "SR": 158.2,
+      "100S": 4,
+      "50S": 1,
+      "4S": 54,
+      "6S": 14,
+      "WKTS": 13,
+      "BBI": "5/11",
+      "ECON": 4.1
+    }
+  },
+  "p82": {
+    "id": "p82",
+    "name": "Rishabh Shami",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 2,
+      "INN": 35,
+      "RUNS": 887,
+      "HS": "108",
+      "AVG": 20.9,
+      "SR": 155.1,
+      "100S": 4,
+      "50S": 6,
+      "4S": 49,
+      "6S": 22,
+      "WKTS": 26,
+      "BBI": "1/5",
+      "ECON": 5.6
+    }
+  },
+  "p83": {
+    "id": "p83",
+    "name": "Sanjay Patel",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 4,
+      "INN": 45,
+      "RUNS": 1674,
+      "HS": "2",
+      "AVG": 12.4,
+      "SR": 160.9,
+      "100S": 1,
+      "50S": 7,
+      "4S": 79,
+      "6S": 37,
+      "WKTS": 33,
+      "BBI": "4/31",
+      "ECON": 5.2
+    }
+  },
+  "p84": {
+    "id": "p84",
+    "name": "Ravindra Iyer",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 13,
+      "INN": 40,
+      "RUNS": 1707,
+      "HS": "24",
+      "AVG": 19.5,
+      "SR": 86.5,
+      "100S": 4,
+      "50S": 3,
+      "4S": 102,
+      "6S": 22,
+      "WKTS": 37,
+      "BBI": "4/10",
+      "ECON": 6.2
+    }
+  },
+  "p85": {
+    "id": "p85",
+    "name": "Rohan Dhoni",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 6,
+      "INN": 1,
+      "RUNS": 764,
+      "HS": "96",
+      "AVG": 31.7,
+      "SR": 169,
+      "100S": 2,
+      "50S": 6,
+      "4S": 98,
+      "6S": 12,
+      "WKTS": 36,
+      "BBI": "4/13",
+      "ECON": 7
+    }
+  },
+  "p86": {
+    "id": "p86",
+    "name": "MS Verma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 19,
+      "INN": 12,
+      "RUNS": 1506,
+      "HS": "105",
+      "AVG": 42.1,
+      "SR": 175.2,
+      "100S": 4,
+      "50S": 1,
+      "4S": 59,
+      "6S": 46,
+      "WKTS": 35,
+      "BBI": "3/7",
+      "ECON": 8.5
+    }
+  },
+  "p87": {
+    "id": "p87",
+    "name": "Raj Ashwin",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 44,
+      "INN": 4,
+      "RUNS": 229,
+      "HS": "53",
+      "AVG": 22.9,
+      "SR": 136.7,
+      "100S": 0,
+      "50S": 5,
+      "4S": 121,
+      "6S": 18,
+      "WKTS": 40,
+      "BBI": "1/15",
+      "ECON": 8.4
+    }
+  },
+  "p88": {
+    "id": "p88",
+    "name": "Pankaj Das",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 12,
+      "INN": 35,
+      "RUNS": 1216,
+      "HS": "141",
+      "AVG": 38.5,
+      "SR": 148.6,
+      "100S": 1,
+      "50S": 9,
+      "4S": 30,
+      "6S": 31,
+      "WKTS": 30,
+      "BBI": "4/29",
+      "ECON": 4.7
+    }
+  },
+  "p89": {
+    "id": "p89",
+    "name": "Hardik Chopra",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 49,
+      "INN": 31,
+      "RUNS": 1631,
+      "HS": "71",
+      "AVG": 45.5,
+      "SR": 107,
+      "100S": 0,
+      "50S": 1,
+      "4S": 77,
+      "6S": 22,
+      "WKTS": 55,
+      "BBI": "1/6",
+      "ECON": 7.3
+    }
+  },
+  "p90": {
+    "id": "p90",
+    "name": "Sumit Siraj",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 34,
+      "INN": 18,
+      "RUNS": 796,
+      "HS": "137",
+      "AVG": 23.2,
+      "SR": 135.3,
+      "100S": 2,
+      "50S": 11,
+      "4S": 72,
+      "6S": 21,
+      "WKTS": 44,
+      "BBI": "3/29",
+      "ECON": 8.4
+    }
+  },
+  "p91": {
+    "id": "p91",
+    "name": "Sanjay Sen",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 41,
+      "INN": 9,
+      "RUNS": 1879,
+      "HS": "46",
+      "AVG": 28.8,
+      "SR": 85.8,
+      "100S": 3,
+      "50S": 9,
+      "4S": 11,
+      "6S": 59,
+      "WKTS": 22,
+      "BBI": "3/18",
+      "ECON": 4.9
+    }
+  },
+  "p92": {
+    "id": "p92",
+    "name": "Karan Das",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 3,
+      "INN": 38,
+      "RUNS": 1011,
+      "HS": "28",
+      "AVG": 6.9,
+      "SR": 169.7,
+      "100S": 3,
+      "50S": 8,
+      "4S": 52,
+      "6S": 25,
+      "WKTS": 29,
+      "BBI": "5/30",
+      "ECON": 8
+    }
+  },
+  "p93": {
+    "id": "p93",
+    "name": "Shreyas Shami",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 35,
+      "INN": 30,
+      "RUNS": 1977,
+      "HS": "100",
+      "AVG": 38.3,
+      "SR": 151.8,
+      "100S": 0,
+      "50S": 10,
+      "4S": 127,
+      "6S": 35,
+      "WKTS": 5,
+      "BBI": "2/12",
+      "ECON": 8.5
+    }
+  },
+  "p94": {
+    "id": "p94",
+    "name": "Vikram Sharma",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 49,
+      "INN": 45,
+      "RUNS": 562,
+      "HS": "28",
+      "AVG": 46.8,
+      "SR": 159.1,
+      "100S": 1,
+      "50S": 8,
+      "4S": 1,
+      "6S": 15,
+      "WKTS": 8,
+      "BBI": "4/19",
+      "ECON": 4.5
+    }
+  },
+  "p95": {
+    "id": "p95",
+    "name": "Anil Gupta",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 18,
+      "INN": 30,
+      "RUNS": 1368,
+      "HS": "77",
+      "AVG": 7,
+      "SR": 114,
+      "100S": 4,
+      "50S": 4,
+      "4S": 135,
+      "6S": 71,
+      "WKTS": 9,
+      "BBI": "5/36",
+      "ECON": 4.9
+    }
+  },
+  "p96": {
+    "id": "p96",
+    "name": "Sachin Bumrah",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 35,
+      "INN": 39,
+      "RUNS": 1736,
+      "HS": "79",
+      "AVG": 27,
+      "SR": 152.8,
+      "100S": 3,
+      "50S": 6,
+      "4S": 0,
+      "6S": 33,
+      "WKTS": 43,
+      "BBI": "3/29",
+      "ECON": 5.3
+    }
+  },
+  "p97": {
+    "id": "p97",
+    "name": "Sachin Yadav",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 8,
+      "INN": 15,
+      "RUNS": 102,
+      "HS": "27",
+      "AVG": 36,
+      "SR": 114.2,
+      "100S": 3,
+      "50S": 4,
+      "4S": 84,
+      "6S": 65,
+      "WKTS": 25,
+      "BBI": "1/16",
+      "ECON": 7.4
+    }
+  },
+  "p98": {
+    "id": "p98",
+    "name": "Shreyas Mishra",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 6,
+      "INN": 1,
+      "RUNS": 1837,
+      "HS": "4",
+      "AVG": 49.4,
+      "SR": 115.8,
+      "100S": 2,
+      "50S": 5,
+      "4S": 70,
+      "6S": 68,
+      "WKTS": 25,
+      "BBI": "1/22",
+      "ECON": 6.3
+    }
+  },
+  "p99": {
+    "id": "p99",
+    "name": "Deepak Rahul",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 19,
+      "INN": 26,
+      "RUNS": 1594,
+      "HS": "24",
+      "AVG": 28.8,
+      "SR": 90.4,
+      "100S": 2,
+      "50S": 0,
+      "4S": 63,
+      "6S": 68,
+      "WKTS": 5,
+      "BBI": "4/17",
+      "ECON": 6.9
+    }
+  },
+  "p100": {
+    "id": "p100",
+    "name": "KL Roy",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 39,
+      "INN": 41,
+      "RUNS": 1951,
+      "HS": "12",
+      "AVG": 22.3,
+      "SR": 145.7,
+      "100S": 2,
+      "50S": 7,
+      "4S": 148,
+      "6S": 22,
+      "WKTS": 12,
+      "BBI": "2/0",
+      "ECON": 5.5
+    }
+  },
+  "p101": {
+    "id": "p101",
+    "name": "MS Sharma",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 35,
+      "INN": 34,
+      "RUNS": 811,
+      "HS": "2",
+      "AVG": 9.9,
+      "SR": 81.1,
+      "100S": 1,
+      "50S": 3,
+      "4S": 114,
+      "6S": 12,
+      "WKTS": 22,
+      "BBI": "3/17",
+      "ECON": 8.1
+    }
+  },
+  "p102": {
+    "id": "p102",
+    "name": "Raj Roy",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 43,
+      "INN": 36,
+      "RUNS": 449,
+      "HS": "128",
+      "AVG": 42.4,
+      "SR": 157,
+      "100S": 3,
+      "50S": 13,
+      "4S": 142,
+      "6S": 70,
+      "WKTS": 24,
+      "BBI": "5/35",
+      "ECON": 8.7
+    }
+  },
+  "p103": {
+    "id": "p103",
+    "name": "Rohit Shami",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 14,
+      "INN": 36,
+      "RUNS": 320,
+      "HS": "56",
+      "AVG": 46,
+      "SR": 87.3,
+      "100S": 0,
+      "50S": 2,
+      "4S": 139,
+      "6S": 15,
+      "WKTS": 30,
+      "BBI": "2/19",
+      "ECON": 7.2
+    }
+  },
+  "p104": {
+    "id": "p104",
+    "name": "Virat Bhuvi",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 30,
+      "INN": 35,
+      "RUNS": 336,
+      "HS": "5",
+      "AVG": 7.8,
+      "SR": 108.2,
+      "100S": 1,
+      "50S": 9,
+      "4S": 22,
+      "6S": 58,
+      "WKTS": 15,
+      "BBI": "4/37",
+      "ECON": 7.6
+    }
+  },
+  "p105": {
+    "id": "p105",
+    "name": "Rohan Bumrah",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 23,
+      "INN": 44,
+      "RUNS": 1027,
+      "HS": "115",
+      "AVG": 26.9,
+      "SR": 107.2,
+      "100S": 2,
+      "50S": 14,
+      "4S": 79,
+      "6S": 17,
+      "WKTS": 48,
+      "BBI": "5/11",
+      "ECON": 6.5
+    }
+  },
+  "p106": {
+    "id": "p106",
+    "name": "MS Chopra",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 25,
+      "INN": 34,
+      "RUNS": 1013,
+      "HS": "30",
+      "AVG": 47.9,
+      "SR": 169.4,
+      "100S": 3,
+      "50S": 11,
+      "4S": 126,
+      "6S": 45,
+      "WKTS": 25,
+      "BBI": "0/10",
+      "ECON": 8.6
+    }
+  },
+  "p107": {
+    "id": "p107",
+    "name": "Karan Bhuvi",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 13,
+      "INN": 23,
+      "RUNS": 1741,
+      "HS": "4",
+      "AVG": 23.4,
+      "SR": 166.8,
+      "100S": 4,
+      "50S": 6,
+      "4S": 140,
+      "6S": 24,
+      "WKTS": 32,
+      "BBI": "5/9",
+      "ECON": 4.9
+    }
+  },
+  "p108": {
+    "id": "p108",
+    "name": "Virat Siraj",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 23,
+      "INN": 8,
+      "RUNS": 914,
+      "HS": "3",
+      "AVG": 15,
+      "SR": 105.2,
+      "100S": 0,
+      "50S": 5,
+      "4S": 89,
+      "6S": 68,
+      "WKTS": 33,
+      "BBI": "2/25",
+      "ECON": 6.8
+    }
+  },
+  "p109": {
+    "id": "p109",
+    "name": "Mohammed Kumar",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 31,
+      "INN": 45,
+      "RUNS": 1115,
+      "HS": "89",
+      "AVG": 26.3,
+      "SR": 171.2,
+      "100S": 2,
+      "50S": 3,
+      "4S": 134,
+      "6S": 62,
+      "WKTS": 11,
+      "BBI": "1/37",
+      "ECON": 6
+    }
+  },
+  "p110": {
+    "id": "p110",
+    "name": "Anil Chopra",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 45,
+      "INN": 14,
+      "RUNS": 144,
+      "HS": "97",
+      "AVG": 25.2,
+      "SR": 91,
+      "100S": 0,
+      "50S": 13,
+      "4S": 131,
+      "6S": 23,
+      "WKTS": 8,
+      "BBI": "3/15",
+      "ECON": 4
+    }
+  },
+  "p111": {
+    "id": "p111",
+    "name": "Ravindra Mehta",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 18,
+      "INN": 3,
+      "RUNS": 910,
+      "HS": "34",
+      "AVG": 42.7,
+      "SR": 96,
+      "100S": 1,
+      "50S": 2,
+      "4S": 117,
+      "6S": 73,
+      "WKTS": 6,
+      "BBI": "3/31",
+      "ECON": 5.3
+    }
+  },
+  "p112": {
+    "id": "p112",
+    "name": "Rishabh Mishra",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 17,
+      "INN": 39,
+      "RUNS": 953,
+      "HS": "79",
+      "AVG": 18.8,
+      "SR": 167.1,
+      "100S": 1,
+      "50S": 0,
+      "4S": 40,
+      "6S": 47,
+      "WKTS": 10,
+      "BBI": "3/27",
+      "ECON": 8
+    }
+  },
+  "p113": {
+    "id": "p113",
+    "name": "Sanjay Iyer",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 9,
+      "INN": 22,
+      "RUNS": 376,
+      "HS": "69",
+      "AVG": 38.6,
+      "SR": 82,
+      "100S": 4,
+      "50S": 11,
+      "4S": 118,
+      "6S": 16,
+      "WKTS": 47,
+      "BBI": "4/36",
+      "ECON": 8.3
+    }
+  },
+  "p114": {
+    "id": "p114",
+    "name": "Sachin Sen",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 37,
+      "INN": 31,
+      "RUNS": 1864,
+      "HS": "125",
+      "AVG": 44,
+      "SR": 109.3,
+      "100S": 2,
+      "50S": 4,
+      "4S": 56,
+      "6S": 42,
+      "WKTS": 3,
+      "BBI": "1/21",
+      "ECON": 5.2
+    }
+  },
+  "p115": {
+    "id": "p115",
+    "name": "Raj Bumrah",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 22,
+      "INN": 30,
+      "RUNS": 247,
+      "HS": "29",
+      "AVG": 35.8,
+      "SR": 123.5,
+      "100S": 4,
+      "50S": 4,
+      "4S": 133,
+      "6S": 38,
+      "WKTS": 20,
+      "BBI": "2/31",
+      "ECON": 5.6
+    }
+  },
+  "p116": {
+    "id": "p116",
+    "name": "Umesh Kohli",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 13,
+      "INN": 16,
+      "RUNS": 573,
+      "HS": "89",
+      "AVG": 38.7,
+      "SR": 126.1,
+      "100S": 1,
+      "50S": 5,
+      "4S": 3,
+      "6S": 25,
+      "WKTS": 10,
+      "BBI": "3/14",
+      "ECON": 7.6
+    }
+  },
+  "p117": {
+    "id": "p117",
+    "name": "Raj Bhuvi",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 7,
+      "INN": 15,
+      "RUNS": 1163,
+      "HS": "25",
+      "AVG": 31.6,
+      "SR": 121.2,
+      "100S": 1,
+      "50S": 4,
+      "4S": 85,
+      "6S": 43,
+      "WKTS": 25,
+      "BBI": "0/34",
+      "ECON": 8
+    }
+  },
+  "p118": {
+    "id": "p118",
+    "name": "Deepak Joshi",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 27,
+      "INN": 19,
+      "RUNS": 1159,
+      "HS": "130",
+      "AVG": 42.4,
+      "SR": 162,
+      "100S": 4,
+      "50S": 11,
+      "4S": 1,
+      "6S": 23,
+      "WKTS": 11,
+      "BBI": "1/14",
+      "ECON": 5.6
+    }
+  },
+  "p119": {
+    "id": "p119",
+    "name": "Mohammed Kuldeep",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 15,
+      "INN": 34,
+      "RUNS": 771,
+      "HS": "34",
+      "AVG": 26.5,
+      "SR": 141,
+      "100S": 3,
+      "50S": 1,
+      "4S": 39,
+      "6S": 71,
+      "WKTS": 42,
+      "BBI": "4/17",
+      "ECON": 4.8
+    }
+  },
+  "p120": {
+    "id": "p120",
+    "name": "Raj Dhoni",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 28,
+      "INN": 16,
+      "RUNS": 1718,
+      "HS": "16",
+      "AVG": 28.8,
+      "SR": 164.4,
+      "100S": 2,
+      "50S": 3,
+      "4S": 65,
+      "6S": 48,
+      "WKTS": 43,
+      "BBI": "4/31",
+      "ECON": 6.8
+    }
+  },
+  "p121": {
+    "id": "p121",
+    "name": "Ravindra Sharma",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 45,
+      "INN": 4,
+      "RUNS": 1651,
+      "HS": "13",
+      "AVG": 37,
+      "SR": 144.5,
+      "100S": 4,
+      "50S": 1,
+      "4S": 24,
+      "6S": 57,
+      "WKTS": 31,
+      "BBI": "2/24",
+      "ECON": 7.6
+    }
+  },
+  "p122": {
+    "id": "p122",
+    "name": "Anil Ashwin",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 28,
+      "INN": 29,
+      "RUNS": 1546,
+      "HS": "21",
+      "AVG": 31.6,
+      "SR": 80.9,
+      "100S": 0,
+      "50S": 4,
+      "4S": 82,
+      "6S": 23,
+      "WKTS": 36,
+      "BBI": "5/21",
+      "ECON": 5
+    }
+  },
+  "p123": {
+    "id": "p123",
+    "name": "Manoj Verma",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 25,
+      "INN": 18,
+      "RUNS": 1015,
+      "HS": "132",
+      "AVG": 19.4,
+      "SR": 110.4,
+      "100S": 1,
+      "50S": 0,
+      "4S": 4,
+      "6S": 48,
+      "WKTS": 23,
+      "BBI": "0/5",
+      "ECON": 6.8
+    }
+  },
+  "p124": {
+    "id": "p124",
+    "name": "Amit Patel",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 1,
+      "INN": 16,
+      "RUNS": 1754,
+      "HS": "122",
+      "AVG": 20.1,
+      "SR": 83.5,
+      "100S": 1,
+      "50S": 9,
+      "4S": 124,
+      "6S": 72,
+      "WKTS": 32,
+      "BBI": "4/38",
+      "ECON": 7
+    }
+  },
+  "p125": {
+    "id": "p125",
+    "name": "Vijay Verma",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 25,
+      "INN": 28,
+      "RUNS": 1015,
+      "HS": "98",
+      "AVG": 43.2,
+      "SR": 111.6,
+      "100S": 3,
+      "50S": 12,
+      "4S": 106,
+      "6S": 17,
+      "WKTS": 9,
+      "BBI": "3/4",
+      "ECON": 7.4
+    }
+  },
+  "p126": {
+    "id": "p126",
+    "name": "Mohammed Gill",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 4,
+      "INN": 15,
+      "RUNS": 13,
+      "HS": "51",
+      "AVG": 5.7,
+      "SR": 132.8,
+      "100S": 2,
+      "50S": 7,
+      "4S": 37,
+      "6S": 28,
+      "WKTS": 38,
+      "BBI": "1/31",
+      "ECON": 8.6
+    }
+  },
+  "p127": {
+    "id": "p127",
+    "name": "Deepak Patel",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 5,
+      "INN": 10,
+      "RUNS": 949,
+      "HS": "70",
+      "AVG": 15.8,
+      "SR": 114.3,
+      "100S": 0,
+      "50S": 9,
+      "4S": 94,
+      "6S": 44,
+      "WKTS": 10,
+      "BBI": "2/6",
+      "ECON": 5.4
+    }
+  },
+  "p128": {
+    "id": "p128",
+    "name": "Hardik Gill",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 11,
+      "INN": 7,
+      "RUNS": 130,
+      "HS": "147",
+      "AVG": 41.2,
+      "SR": 118.1,
+      "100S": 1,
+      "50S": 11,
+      "4S": 29,
+      "6S": 50,
+      "WKTS": 20,
+      "BBI": "5/26",
+      "ECON": 7.5
+    }
+  },
+  "p129": {
+    "id": "p129",
+    "name": "Sunil Siraj",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 23,
+      "INN": 16,
+      "RUNS": 667,
+      "HS": "125",
+      "AVG": 7.2,
+      "SR": 149.4,
+      "100S": 3,
+      "50S": 11,
+      "4S": 116,
+      "6S": 44,
+      "WKTS": 2,
+      "BBI": "0/10",
+      "ECON": 7.5
+    }
+  },
+  "p130": {
+    "id": "p130",
+    "name": "Rohit Sen",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 15,
+      "INN": 15,
+      "RUNS": 835,
+      "HS": "7",
+      "AVG": 39.6,
+      "SR": 155.5,
+      "100S": 4,
+      "50S": 14,
+      "4S": 2,
+      "6S": 18,
+      "WKTS": 40,
+      "BBI": "1/7",
+      "ECON": 7.9
+    }
+  },
+  "p131": {
+    "id": "p131",
+    "name": "Pankaj Sen",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 3,
+      "INN": 19,
+      "RUNS": 1597,
+      "HS": "106",
+      "AVG": 33.8,
+      "SR": 150.3,
+      "100S": 4,
+      "50S": 7,
+      "4S": 141,
+      "6S": 70,
+      "WKTS": 30,
+      "BBI": "4/5",
+      "ECON": 4.2
+    }
+  },
+  "p132": {
+    "id": "p132",
+    "name": "KL Chopra",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 43,
+      "INN": 28,
+      "RUNS": 886,
+      "HS": "121",
+      "AVG": 7.5,
+      "SR": 82.5,
+      "100S": 0,
+      "50S": 2,
+      "4S": 89,
+      "6S": 58,
+      "WKTS": 15,
+      "BBI": "1/15",
+      "ECON": 9
+    }
+  },
+  "p133": {
+    "id": "p133",
+    "name": "Mohammed Verma",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 27,
+      "INN": 7,
+      "RUNS": 1463,
+      "HS": "117",
+      "AVG": 14.5,
+      "SR": 140.5,
+      "100S": 0,
+      "50S": 7,
+      "4S": 115,
+      "6S": 14,
+      "WKTS": 31,
+      "BBI": "5/0",
+      "ECON": 7
+    }
+  },
+  "p134": {
+    "id": "p134",
+    "name": "Mohammed Pant",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 15,
+      "INN": 20,
+      "RUNS": 247,
+      "HS": "18",
+      "AVG": 5.5,
+      "SR": 152.6,
+      "100S": 3,
+      "50S": 11,
+      "4S": 69,
+      "6S": 4,
+      "WKTS": 20,
+      "BBI": "1/34",
+      "ECON": 6.7
+    }
+  },
+  "p135": {
+    "id": "p135",
+    "name": "Rohit Sen",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 23,
+      "INN": 16,
+      "RUNS": 791,
+      "HS": "123",
+      "AVG": 25.7,
+      "SR": 118.2,
+      "100S": 0,
+      "50S": 8,
+      "4S": 73,
+      "6S": 34,
+      "WKTS": 8,
+      "BBI": "5/14",
+      "ECON": 8
+    }
+  },
+  "p136": {
+    "id": "p136",
+    "name": "KL Kohli",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 47,
+      "INN": 11,
+      "RUNS": 675,
+      "HS": "99",
+      "AVG": 26.6,
+      "SR": 160.3,
+      "100S": 2,
+      "50S": 13,
+      "4S": 126,
+      "6S": 29,
+      "WKTS": 20,
+      "BBI": "5/39",
+      "ECON": 7.2
+    }
+  },
+  "p137": {
+    "id": "p137",
+    "name": "Rahul Shami",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 33,
+      "INN": 7,
+      "RUNS": 998,
+      "HS": "142",
+      "AVG": 18.6,
+      "SR": 108.4,
+      "100S": 1,
+      "50S": 11,
+      "4S": 39,
+      "6S": 64,
+      "WKTS": 38,
+      "BBI": "0/13",
+      "ECON": 5.6
+    }
+  },
+  "p138": {
+    "id": "p138",
+    "name": "Rahul Chahal",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 49,
+      "INN": 19,
+      "RUNS": 376,
+      "HS": "21",
+      "AVG": 19,
+      "SR": 165.9,
+      "100S": 2,
+      "50S": 6,
+      "4S": 96,
+      "6S": 4,
+      "WKTS": 23,
+      "BBI": "0/19",
+      "ECON": 5.3
+    }
+  },
+  "p139": {
+    "id": "p139",
+    "name": "Virat Roy",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 28,
+      "INN": 9,
+      "RUNS": 1930,
+      "HS": "129",
+      "AVG": 35.2,
+      "SR": 140.6,
+      "100S": 4,
+      "50S": 3,
+      "4S": 46,
+      "6S": 58,
+      "WKTS": 40,
+      "BBI": "1/1",
+      "ECON": 5.6
+    }
+  },
+  "p140": {
+    "id": "p140",
+    "name": "Karan Bumrah",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 5,
+      "INN": 23,
+      "RUNS": 1988,
+      "HS": "52",
+      "AVG": 20.2,
+      "SR": 98.9,
+      "100S": 1,
+      "50S": 8,
+      "4S": 89,
+      "6S": 56,
+      "WKTS": 3,
+      "BBI": "0/0",
+      "ECON": 7.7
+    }
+  },
+  "p141": {
+    "id": "p141",
+    "name": "Mohammed Verma",
+    "role": "WK",
+    "roleColor": "#E65100",
+    "stats": {
+      "MAT": 30,
+      "INN": 30,
+      "RUNS": 421,
+      "HS": "58",
+      "AVG": 5.5,
+      "SR": 176.1,
+      "100S": 0,
+      "50S": 5,
+      "4S": 133,
+      "6S": 2,
+      "WKTS": 9,
+      "BBI": "3/39",
+      "ECON": 7.5
+    }
+  },
+  "p142": {
+    "id": "p142",
+    "name": "Jasprit Gupta",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 39,
+      "INN": 29,
+      "RUNS": 1245,
+      "HS": "10",
+      "AVG": 14.7,
+      "SR": 102,
+      "100S": 1,
+      "50S": 13,
+      "4S": 33,
+      "6S": 4,
+      "WKTS": 0,
+      "BBI": "0/10",
+      "ECON": 4.3
+    }
+  },
+  "p143": {
+    "id": "p143",
+    "name": "Hardik Pant",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 37,
+      "INN": 11,
+      "RUNS": 1753,
+      "HS": "2",
+      "AVG": 36.2,
+      "SR": 139.8,
+      "100S": 4,
+      "50S": 10,
+      "4S": 87,
+      "6S": 32,
+      "WKTS": 46,
+      "BBI": "0/22",
+      "ECON": 4
+    }
+  },
+  "p144": {
+    "id": "p144",
+    "name": "Manoj Karthik",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 42,
+      "INN": 21,
+      "RUNS": 1233,
+      "HS": "75",
+      "AVG": 41.3,
+      "SR": 80.3,
+      "100S": 2,
+      "50S": 14,
+      "4S": 60,
+      "6S": 75,
+      "WKTS": 57,
+      "BBI": "0/26",
+      "ECON": 7.4
+    }
+  },
+  "p145": {
+    "id": "p145",
+    "name": "Sumit Sen",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 28,
+      "INN": 19,
+      "RUNS": 679,
+      "HS": "9",
+      "AVG": 39.1,
+      "SR": 131.2,
+      "100S": 3,
+      "50S": 13,
+      "4S": 134,
+      "6S": 37,
+      "WKTS": 55,
+      "BBI": "3/23",
+      "ECON": 6.3
+    }
+  },
+  "p146": {
+    "id": "p146",
+    "name": "Sachin Roy",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 25,
+      "INN": 13,
+      "RUNS": 1497,
+      "HS": "0",
+      "AVG": 49.8,
+      "SR": 110.5,
+      "100S": 0,
+      "50S": 0,
+      "4S": 142,
+      "6S": 66,
+      "WKTS": 15,
+      "BBI": "4/6",
+      "ECON": 8.3
+    }
+  },
+  "p147": {
+    "id": "p147",
+    "name": "Hardik Yadav",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 28,
+      "INN": 17,
+      "RUNS": 567,
+      "HS": "36",
+      "AVG": 16.7,
+      "SR": 156.5,
+      "100S": 0,
+      "50S": 8,
+      "4S": 114,
+      "6S": 46,
+      "WKTS": 16,
+      "BBI": "2/38",
+      "ECON": 5.2
+    }
+  },
+  "p148": {
+    "id": "p148",
+    "name": "Shikhar Joshi",
+    "role": "BWL",
+    "roleColor": "#6A1B9A",
+    "stats": {
+      "MAT": 34,
+      "INN": 31,
+      "RUNS": 881,
+      "HS": "82",
+      "AVG": 46.9,
+      "SR": 177.5,
+      "100S": 3,
+      "50S": 13,
+      "4S": 105,
+      "6S": 70,
+      "WKTS": 32,
+      "BBI": "4/36",
+      "ECON": 9
+    }
+  },
+  "p149": {
+    "id": "p149",
+    "name": "Anil Bhuvi",
+    "role": "BAT",
+    "roleColor": "#1565C0",
+    "stats": {
+      "MAT": 12,
+      "INN": 33,
+      "RUNS": 1948,
+      "HS": "43",
+      "AVG": 49.1,
+      "SR": 172.8,
+      "100S": 2,
+      "50S": 6,
+      "4S": 64,
+      "6S": 64,
+      "WKTS": 45,
+      "BBI": "5/39",
+      "ECON": 7.2
+    }
+  },
+  "p150": {
+    "id": "p150",
+    "name": "Vikram Sharma",
+    "role": "AR",
+    "roleColor": "#2E7D32",
+    "stats": {
+      "MAT": 20,
+      "INN": 13,
+      "RUNS": 470,
+      "HS": "43",
+      "AVG": 23.2,
+      "SR": 120.4,
+      "100S": 2,
+      "50S": 10,
+      "4S": 42,
+      "6S": 79,
+      "WKTS": 24,
+      "BBI": "5/36",
+      "ECON": 4.4
+    }
+  }
+};
+
+const INITIAL_TEAMS: Team[] = [
+  {
+    "id": "t1",
+    "name": "Mumbai Mavericks",
+    "shortName": "MM",
+    "city": "Mumbai",
+    "yearFounded": "2016",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#004BA0",
+    "players": 15,
+    "avatarColor": "#004BA0",
+    "avatarLetter": "MM",
+    "roster": [
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14",
+      "p15"
+    ]
+  },
+  {
+    "id": "t2",
+    "name": "Delhi Dynamos",
+    "shortName": "DD",
+    "city": "Delhi",
+    "yearFounded": "2008",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#00008B",
+    "players": 15,
+    "avatarColor": "#00008B",
+    "avatarLetter": "DD",
+    "roster": [
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22",
+      "p23",
+      "p24",
+      "p25",
+      "p26",
+      "p27",
+      "p28",
+      "p29",
+      "p30"
+    ]
+  },
+  {
+    "id": "t3",
+    "name": "Bangalore Blasters",
+    "shortName": "BB",
+    "city": "Bangalore",
+    "yearFounded": "2013",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#C62828",
+    "players": 15,
+    "avatarColor": "#C62828",
+    "avatarLetter": "BB",
+    "roster": [
+      "p31",
+      "p32",
+      "p33",
+      "p34",
+      "p35",
+      "p36",
+      "p37",
+      "p38",
+      "p39",
+      "p40",
+      "p41",
+      "p42",
+      "p43",
+      "p44",
+      "p45"
+    ]
+  },
+  {
+    "id": "t4",
+    "name": "Chennai Champions",
+    "shortName": "CC",
+    "city": "Chennai",
+    "yearFounded": "2017",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#FBC02D",
+    "players": 15,
+    "avatarColor": "#FBC02D",
+    "avatarLetter": "CC",
+    "roster": [
+      "p46",
+      "p47",
+      "p48",
+      "p49",
+      "p50",
+      "p51",
+      "p52",
+      "p53",
+      "p54",
+      "p55",
+      "p56",
+      "p57",
+      "p58",
+      "p59",
+      "p60"
+    ]
+  },
+  {
+    "id": "t5",
+    "name": "Kolkata Kings",
+    "shortName": "KK",
+    "city": "Kolkata",
+    "yearFounded": "2010",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#4A148C",
+    "players": 15,
+    "avatarColor": "#4A148C",
+    "avatarLetter": "KK",
+    "roster": [
+      "p61",
+      "p62",
+      "p63",
+      "p64",
+      "p65",
+      "p66",
+      "p67",
+      "p68",
+      "p69",
+      "p70",
+      "p71",
+      "p72",
+      "p73",
+      "p74",
+      "p75"
+    ]
+  },
+  {
+    "id": "t6",
+    "name": "Hyderabad Hawks",
+    "shortName": "HH",
+    "city": "Hyderabad",
+    "yearFounded": "2014",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#EF6C00",
+    "players": 15,
+    "avatarColor": "#EF6C00",
+    "avatarLetter": "HH",
+    "roster": [
+      "p76",
+      "p77",
+      "p78",
+      "p79",
+      "p80",
+      "p81",
+      "p82",
+      "p83",
+      "p84",
+      "p85",
+      "p86",
+      "p87",
+      "p88",
+      "p89",
+      "p90"
+    ]
+  },
+  {
+    "id": "t7",
+    "name": "Rajasthan Royals",
+    "shortName": "RR",
+    "city": "Jaipur",
+    "yearFounded": "2008",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#EA80FC",
+    "players": 15,
+    "avatarColor": "#EA80FC",
+    "avatarLetter": "RR",
+    "roster": [
+      "p91",
+      "p92",
+      "p93",
+      "p94",
+      "p95",
+      "p96",
+      "p97",
+      "p98",
+      "p99",
+      "p100",
+      "p101",
+      "p102",
+      "p103",
+      "p104",
+      "p105"
+    ]
+  },
+  {
+    "id": "t8",
+    "name": "Punjab Power",
+    "shortName": "PP",
+    "city": "Chandigarh",
+    "yearFounded": "2018",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#D32F2F",
+    "players": 15,
+    "avatarColor": "#D32F2F",
+    "avatarLetter": "PP",
+    "roster": [
+      "p106",
+      "p107",
+      "p108",
+      "p109",
+      "p110",
+      "p111",
+      "p112",
+      "p113",
+      "p114",
+      "p115",
+      "p116",
+      "p117",
+      "p118",
+      "p119",
+      "p120"
+    ]
+  },
+  {
+    "id": "t9",
+    "name": "Gujarat Giants",
+    "shortName": "GG",
+    "city": "Ahmedabad",
+    "yearFounded": "2011",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#FF9800",
+    "players": 15,
+    "avatarColor": "#FF9800",
+    "avatarLetter": "GG",
+    "roster": [
+      "p121",
+      "p122",
+      "p123",
+      "p124",
+      "p125",
+      "p126",
+      "p127",
+      "p128",
+      "p129",
+      "p130",
+      "p131",
+      "p132",
+      "p133",
+      "p134",
+      "p135"
+    ]
+  },
+  {
+    "id": "t10",
+    "name": "Lucknow Lions",
+    "shortName": "LL",
+    "city": "Lucknow",
+    "yearFounded": "2017",
+    "homeGround": "Stadium",
+    "formats": [
+      "T20",
+      "ODI"
+    ],
+    "overs": "20",
+    "themeColor": "#00ACC1",
+    "players": 15,
+    "avatarColor": "#00ACC1",
+    "avatarLetter": "LL",
+    "roster": [
+      "p136",
+      "p137",
+      "p138",
+      "p139",
+      "p140",
+      "p141",
+      "p142",
+      "p143",
+      "p144",
+      "p145",
+      "p146",
+      "p147",
+      "p148",
+      "p149",
+      "p150"
+    ]
+  }
+];
+
+export const useTeamStore = create<TeamState>((set) => ({
+  teams: INITIAL_TEAMS,
+  players: INITIAL_PLAYERS,
+  friends: ['r4', 'r5'], // Manish and Vikram are friends for demo
+  invites: [],
+  following: ['t1'], // Following Mumbai XI by default
+  socialRequests: [
+    {
+      id: 'req_1',
+      senderId: 'r2',
+      receiverId: 'me',
+      type: 'friend',
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    },
+    {
+      id: 'req_2',
+      senderId: 'r3',
+      receiverId: 'me',
+      type: 'team_join',
+      teamId: 't1',
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    }
+  ],
+  matches: [
+    {
+      id: 'm1',
+      format: 'T20',
+      teams: 'Mumbai Mavericks vs Delhi Dynamos',
+      teamAInfo: INITIAL_TEAMS[0], // Mumbai
+      teamBInfo: INITIAL_TEAMS[1], // Delhi
+      playersA: [], // Simplified for now
+      playersB: [],
+      cvcMap: {},
+      date: '2024-03-20',
+      time: '07:30 PM',
+      venue: 'Wankhede Stadium',
+      status: 'live',
+      overs: '20',
+      scoreA: '142/3',
+      scoreB: 'Yet to bat',
+      oversPlayed: '15.2',
+      currentStatus: 'Mumbai opt to bat first',
+    },
+    {
+      id: 'm2',
+      format: 'ODI',
+      teams: 'Bangalore Blasters vs Chennai Champions',
+      teamAInfo: INITIAL_TEAMS[2], // Bangalore
+      teamBInfo: INITIAL_TEAMS[3], // Chennai
+      playersA: [],
+      playersB: [],
+      cvcMap: {},
+      date: '2024-03-21',
+      time: '02:00 PM',
+      venue: 'M. Chinnaswamy Stadium',
+      status: 'live',
+      overs: '50',
+      scoreA: '245/6',
+      scoreB: 'Yet to bat',
+      oversPlayed: '44.5',
+      currentStatus: 'Chennai needs 246 to win',
+    },
+    {
+      id: 'm3',
+      format: 'T20',
+      teams: 'Kolkata Kings vs Hyderabad Hawks',
+      teamAInfo: INITIAL_TEAMS[4], // Kolkata
+      teamBInfo: INITIAL_TEAMS[5], // Hyderabad
+      playersA: [],
+      playersB: [],
+      cvcMap: {},
+      date: '2024-03-22',
+      time: '08:00 PM',
+      venue: 'Eden Gardens',
+      status: 'upcoming',
+      overs: '20',
+    }
+  ],
+
+  addMatch: (match) => set((state) => ({ matches: [...state.matches, match] })),
+
+  updateMatchStatus: (matchId, status) =>
+    set((state) => ({
+      matches: state.matches.map((m) => (m.id === matchId ? { ...m, status } : m)),
+    })),
+
+  addTeam: (team) => set((state) => ({ teams: [...state.teams, team] })),
+
+  updateTeam: (updatedTeam) =>
+    set((state) => ({
+      teams: state.teams.map((t) => (t.id === updatedTeam.id ? updatedTeam : t)),
+    })),
+
+  deleteTeam: (id) =>
+    set((state) => ({
+      teams: state.teams.filter((t) => t.id !== id),
+    })),
+
+  addPlayerToTeam: (teamId, player) =>
+    set((state) => ({
+      players: { ...state.players, [player.id]: player },
+      teams: state.teams.map((t) => {
+        if (t.id === teamId) {
+          return {
+            ...t,
+            roster: [...t.roster, player.id],
+            players: t.players + 1,
+          };
+        }
+        return t;
+      }),
+    })),
+
+  removePlayerFromTeam: (teamId, playerId) =>
+    set((state) => ({
+      teams: state.teams.map((t) => {
+        if (t.id === teamId) {
+          return {
+            ...t,
+            roster: t.roster.filter((id) => id !== playerId),
+            players: Math.max(0, t.players - 1),
+          };
+        }
+        return t;
+      }),
+    })),
+
+  updatePlayerStats: (playerId, newStats) =>
+    set((state) => {
+      const player = state.players[playerId];
+      if (!player) return state;
+      return {
+        players: {
+          ...state.players,
+          [playerId]: {
+            ...player,
+            stats: { ...player.stats, ...newStats },
+          },
+        },
+      };
+    }),
+
+  sendInvite: (invite) =>
+    set((state) => ({
+      invites: [
+        ...state.invites,
+        {
+          ...invite,
+          id: `inv_${Date.now()}`,
+          status: 'pending',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    })),
+
+  acceptInvite: (inviteId) =>
+    set((state) => {
+      const invite = state.invites.find((i) => i.id === inviteId);
+      if (!invite) return state;
+
+      const player = state.players[invite.receiverId];
+      if (!player) return state;
+
+      return {
+        invites: state.invites.map((i) =>
+          i.id === inviteId ? { ...i, status: 'accepted' } : i
+        ),
+        teams: state.teams.map((t) => {
+          if (t.id === invite.teamId) {
+            return {
+              ...t,
+              roster: [...t.roster, invite.receiverId],
+              players: t.players + 1,
+            };
+          }
+          return t;
+        }),
+      };
+    }),
+
+  sendSocialRequest: (request) =>
+    set((state) => ({
+      socialRequests: [
+        ...state.socialRequests,
+        {
+          ...request,
+          id: `req_${Date.now()}`,
+          status: 'pending',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    })),
+
+  respondToSocialRequest: (requestId, status) =>
+    set((state) => {
+      const request = state.socialRequests.find((r) => r.id === requestId);
+      if (!request) return state;
+
+      const newState: Partial<TeamState> = {
+        socialRequests: state.socialRequests.map((r) =>
+          r.id === requestId ? { ...r, status } : r
+        ),
+      };
+
+      if (status === 'accepted') {
+        if (request.type === 'friend') {
+          // Bidirectional friend logic: Add sender to my friends list
+          if (!state.friends.includes(request.senderId)) {
+            newState.friends = [...state.friends, request.senderId];
+          }
+        } else if (request.type === 'team_join' && request.teamId) {
+          // Add player to team roster
+          newState.teams = state.teams.map((t) => {
+            if (t.id === request.teamId) {
+              const alreadyInRoster = t.roster.includes(request.senderId);
+              return {
+                ...t,
+                roster: alreadyInRoster ? t.roster : [...t.roster, request.senderId],
+                players: alreadyInRoster ? t.players : t.players + 1,
+              };
+            }
+            return t;
+          });
+        }
+      }
+
+      return { ...state, ...newState };
+    }),
+
+  toggleFollow: (id) =>
+    set((state) => ({
+      following: state.following.includes(id)
+        ? state.following.filter((fid) => fid !== id)
+        : [...state.following, id],
+    })),
+
+  instantMatches: [],
+  addInstantMatch: (match: InstantMatch) =>
+    set((state) => ({
+      instantMatches: [match, ...state.instantMatches],
+    })),
+  deleteInstantMatch: (id: string) =>
+    set((state) => ({
+      instantMatches: state.instantMatches.filter((m: any) => m.id !== id),
+    })),
+  tournaments: [],
+  addTournament: (tournament) =>
+    set((state) => ({
+      tournaments: [tournament, ...state.tournaments],
+    })),
+  updateTournament: (tournament) =>
+    set((state) => ({
+      tournaments: state.tournaments.map((t) => (t.id === tournament.id ? tournament : t)),
+    })),
+  generateTournamentFixtures: (tournamentId) =>
+    set((state) => {
+      const tournament = state.tournaments.find((t) => t.id === tournamentId);
+      if (!tournament) return state;
+
+      const fixtures: TournamentFixture[] = [];
+      const teams = tournament.teams;
+      
+      if (tournament.format === 'Knockout') {
+        // Simple knockout logic for planning phase
+        for (let i = 0; i < teams.length; i += 2) {
+          if (teams[i + 1]) {
+            fixtures.push({
+              id: `f_${tournamentId}_${i}`,
+              round: 'Round 1',
+              team1: teams[i],
+              team2: teams[i + 1],
+              date: tournament.startDate,
+              time: '10:00 AM',
+              venue: tournament.venue,
+              status: 'upcoming',
+            });
+          }
+        }
+      } else if (tournament.format === 'Round Robin') {
+        // Round robin logic (Placeholder for now)
+        for (let i = 0; i < teams.length; i++) {
+          for (let j = i + 1; j < teams.length; j++) {
+            fixtures.push({
+              id: `f_${tournamentId}_${i}_${j}`,
+              round: 'Group Stage',
+              team1: teams[i],
+              team2: teams[j],
+              date: tournament.startDate,
+              time: '10:00 AM',
+              venue: tournament.venue,
+              status: 'upcoming',
+            });
+          }
+        }
+      }
+
+      return {
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId ? { ...t, fixtures } : t
+        ),
+      };
+    }),
+  globalLiveMatch: null,
+  updateGlobalLiveMatch: (match) =>
+    set((state) => ({
+      globalLiveMatch: match === null ? null : { ...(state.globalLiveMatch || {}), ...match } as GlobalLiveMatch,
+    })),
+}));

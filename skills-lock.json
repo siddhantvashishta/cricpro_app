@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "ui-mobile": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "computedHash": "03ff504483106981bec32404e7b6aedb669b2eeab96cd2c8c76e18ab0b60811f"
+    }
+  }
+}

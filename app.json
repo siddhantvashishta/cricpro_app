@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "CricPro",
+    "slug": "cricpro-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/main_logo.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.siddhantvashishta.cricpro",
+      "adaptiveIcon": {
+        "backgroundColor": "#941111",
+        "foregroundImage": "./assets/main_logo.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4a8ac719-4e69-49c0-b4a1-deda6e025c09"
+      }
+    }
+  }
+}
